@@ -12,3 +12,4 @@
 (add-hook 'org-mode-hook 'org-indent-mode)
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)
 (add-hook 'text-mode-hook 'turn-on-auto-fill)
+(require 'org-mouse)
