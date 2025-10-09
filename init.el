@@ -1,6 +1,8 @@
 (setq custom-file "~/.emacs.d/emacs-custom.el")
 (load custom-file)
 
+(setenv "PATH" (concat (getenv "PATH") ":/opt/homebrew/bin"))
+
 (setq dired-isearch-filenames 'dwim)
 
 (setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
@@ -25,3 +27,6 @@
 
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
+
+(setq dumb-jump-force-searcher 'rg)
+(add-hook 'xref-backend-functions #'dumb-jump-xref-activate)
