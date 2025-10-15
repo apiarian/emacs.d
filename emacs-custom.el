@@ -6,7 +6,8 @@
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(wheatgrass))
  '(org-hide-emphasis-markers t)
- '(package-selected-packages '(dumb-jump forge magit markdown-mode which-key)))
+ '(package-selected-packages
+   '(dockerfile-mode dumb-jump forge magit markdown-mode which-key)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

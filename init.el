@@ -1,7 +1,13 @@
 (setq custom-file "~/.emacs.d/emacs-custom.el")
 (load custom-file)
 
-(setenv "PATH" (concat (getenv "PATH") ":/opt/homebrew/bin"))
+(global-auto-revert-mode 1).
+
+(when (and (eq system-type 'darwin) (executable-find "gls"))
+  (setq insert-directory-program "gls"))
+
+(when (eq system-type 'darwin)
+  (setenv "PATH" (concat (getenv "PATH") ":/opt/homebrew/bin")))
 
 (setq dired-isearch-filenames 'dwim)
 
@@ -28,5 +34,35 @@
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
+(defun split-and-follow-vertically ()
+  "Split window vertically and switch to new window."
+  (interactive)
+  (split-window-right)
+  (balance-windows)
+  (other-window 1))
+
+(defun split-and-follow-horizontally ()
+  "Split window horizontally and switch to new window."
+  (interactive)
+  (split-window-below)
+  (balance-windows)
+  (other-window 1))
+
+(global-set-key (kbd "C-x 3") 'split-and-follow-vertically)
+(global-set-key (kbd "C-x 2") 'split-and-follow-horizontally)
+
 (setq dumb-jump-force-searcher 'rg)
 (add-hook 'xref-backend-functions #'dumb-jump-xref-activate)
+
+(defun my-tab-bar-new-tab-dired ()
+  "Return dired buffer at current file location, or *scratch* buffer."
+  (let ((current-file (buffer-file-name)))
+    (if current-file
+        (let* ((dir (file-name-directory current-file))
+               (dired-buf (dired-noselect dir)))
+          (with-current-buffer dired-buf
+            (dired-goto-file current-file))
+          dired-buf)
+      (get-buffer-create "*scratch*"))))
+
+(setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
