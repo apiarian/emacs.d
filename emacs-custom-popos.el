@@ -7,7 +7,7 @@
  '(custom-enabled-themes '(wheatgrass))
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(dumb-jump magit markdown-mode which-key)))
+   '(dumb-jump forge magit markdown-mode which-key)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
