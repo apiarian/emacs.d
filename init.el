@@ -1,7 +1,12 @@
-(setq custom-file "~/.emacs.d/emacs-custom.el")
+					; install missing packages with package-install-selected-packages
+
+(when (eq system-type 'darwin)
+  (setq custom-file "~/.emacs.d/emacs-custom-mac.el"))
+(when (not (eq system-type 'darwin))
+  (setq custom-file "~/.emacs.d/emacs-custom-popos.el"))
 (load custom-file)
 
-(global-auto-revert-mode 1).
+(global-auto-revert-mode 1)
 
 (when (and (eq system-type 'darwin) (executable-find "gls"))
   (setq insert-directory-program "gls"))
