@@ -7,6 +7,8 @@
 (load custom-file)
 
 (global-auto-revert-mode 1)
+(if window-system
+    (tool-bar-mode -1))
 
 (when (and (eq system-type 'darwin) (executable-find "gls"))
   (setq insert-directory-program "gls"))
