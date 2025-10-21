@@ -6,6 +6,49 @@
   (setq custom-file "~/.emacs.d/emacs-custom-popos.el"))
 (load custom-file)
 
+					; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
+(use-package tab-bar
+  :ensure nil
+  :defer t
+  :custom
+  (setq tab-bar-close-button-show nil)
+  (setq tab-bar-new-button-show nil)
+  (setq tab-bar-tab-hints t)
+  (setq tab-bar-select-tab-modifiers '(super))
+  (setq tab-bar-auto-width nil)
+  (setq tab-bar-separator " ")
+  (setq tab-bar-format '(tab-bar-format-tabs-groups
+			 tab-bar-separator))
+  :init
+  (defun tab-bar-tab-name-format-hints (name _tab i)
+    (if tab-bar-tab-hints (concat (format "%d:" i) name) name))
+
+  (defun tab-bar-tab-group-format-default (tab _i &optional current-p)
+    (propertize
+     (concat (funcall tab-bar-tab-group-function tab))
+     'face (if current-p 'tab-bar-tab-group-current 'tab-bar-tab-group-inactive)))
+
+  (defun my-tab-switch-to-group ()
+    "Prompt for a tab group and switch to its first tab. Uses position instead of index field."
+    (interactive)
+    (let* ((tabs (funcall tab-bar-tabs-function)))
+      (let* ((groups (delete-dups (mapcar (lambda (tab)
+					    (funcall tab-bar-tab-group-function tab))
+					  tabs)))
+	     (group (completing-read "Switch to group: " groups nil t)))
+	(let ((i 1) (found nil))
+	  (dolist (tab tabs)
+	    (let ((tab-group (funcall tab-bar-tab-group-function tab)))
+	      (when (and (not found)
+			 (string= tab-group group))
+		(setq found t)
+		(tab-bar-select-tab i)))
+	    (setq i (1+ i)))))))
+
+  (global-set-key (kbd "C-x t g") #'my-tab-switch-to-group)
+
+  (tab-bar-mode 1))
+
 (global-auto-revert-mode 1)
 (if window-system
     (tool-bar-mode -1))
