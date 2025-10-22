@@ -1,24 +1,25 @@
 					; install missing packages with package-install-selected-packages
 
-(when (eq system-type 'darwin)
-  (setq custom-file "~/.emacs.d/emacs-custom-mac.el"))
-(when (not (eq system-type 'darwin))
-  (setq custom-file "~/.emacs.d/emacs-custom-popos.el"))
-(load custom-file)
+;; Load host-specific config if exists
+;; To find your hostname, run in terminal: hostname
+;; Or in Emacs: M-: (system-name)
+;; Then create file: init-{hostname}.el (e.g., init-COMP-KKVCV56XMN.el)
+(let ((host-init (concat user-emacs-directory "init-" (system-name) ".el")))
+  (when (file-exists-p host-init)
+    (load host-init)))
 
 					; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
 (use-package tab-bar
   :ensure nil
-  :defer t
   :custom
-  (setq tab-bar-close-button-show nil)
-  (setq tab-bar-new-button-show nil)
-  (setq tab-bar-tab-hints t)
-  (setq tab-bar-select-tab-modifiers '(super))
-  (setq tab-bar-auto-width nil)
-  (setq tab-bar-separator " ")
-  (setq tab-bar-format '(tab-bar-format-tabs-groups
-			 tab-bar-separator))
+  (tab-bar-close-button-show nil)
+  (tab-bar-new-button-show nil)
+  (tab-bar-tab-hints t)
+  (tab-bar-select-tab-modifiers '(super))
+  (tab-bar-auto-width nil)
+  (tab-bar-separator " ")
+  (tab-bar-format '(tab-bar-format-tabs-groups
+                    tab-bar-separator))
   :init
   (defun tab-bar-tab-name-format-hints (name _tab i)
     (if tab-bar-tab-hints (concat (format "%d:" i) name) name))
