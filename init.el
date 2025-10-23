@@ -74,6 +74,21 @@
 
 (setq auth-sources '("~/.authinfo"))
 
+(use-package magit
+  :config
+  (defun my-magit-branch-read-with-prefix (orig-fun prompt &optional initial-input &rest args)
+    "Add branch prefix when reading branch names in magit.
+Prefix is defined by `my-magit-branch-prefix' in host-specific config."
+    (if (and (boundp 'my-magit-branch-prefix)
+             my-magit-branch-prefix
+             (stringp prompt)
+             (or (string-match-p "Name for new branch" prompt)
+                 (string-match-p "named" prompt)))
+        (apply orig-fun prompt my-magit-branch-prefix args)
+      (apply orig-fun prompt initial-input args)))
+
+  (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix))
+
 (use-package forge
   :after magit)
 
