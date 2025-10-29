@@ -7,7 +7,8 @@
  '(custom-enabled-themes '(wheatgrass))
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(dockerfile-mode dumb-jump forge magit markdown-mode which-key))
+   '(dockerfile-mode dumb-jump forge magit markdown-mode typescript-mode
+		     which-key))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

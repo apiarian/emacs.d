@@ -97,6 +97,50 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (add-hook 'text-mode-hook 'turn-on-auto-fill)
 (require 'org-mouse)
 
+(defun org-create-missing-headings ()
+  "Find all internal links in current org buffer and create missing headings.
+New headings are inserted at top of file as level 1, sorted alphabetically."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in org-mode buffer"))
+  (let* ((ast (org-element-parse-buffer))
+         (all-links '())
+         (missing-headings '()))
+    (org-element-map ast 'link
+      (lambda (link)
+        (let ((type (org-element-property :type link))
+              (path (org-element-property :path link)))
+          (when (and (string= type "fuzzy")
+                     (string-prefix-p "*" path))
+            (push (substring path 1) all-links)))))
+    (dolist (heading-name all-links)
+      (save-excursion
+        (goto-char (point-min))
+        (unless (re-search-forward
+                 (format org-complex-heading-regexp-format
+                         (regexp-quote heading-name))
+                 nil t)
+          (push heading-name missing-headings))))
+    (if (not missing-headings)
+        (message "No missing headings found.")
+      (let ((sorted-missing (sort (delete-dups missing-headings) 'string<)))
+        (when (y-or-n-p (format "Create %d missing heading%s: %s? "
+                                (length sorted-missing)
+                                (if (> (length sorted-missing) 1) "s" "")
+                                (mapconcat 'identity sorted-missing ", ")))
+          (save-excursion
+            (goto-char (point-min))
+            (while (and (not (eobp))
+                        (looking-at "^#\\+"))
+              (forward-line 1))
+            (dolist (heading sorted-missing)
+              (unless (bolp) (insert "\n"))
+              (insert "* " heading "\n")))
+          (message "Created %d heading%s: %s"
+                   (length sorted-missing)
+                   (if (> (length sorted-missing) 1) "s" "")
+                   (mapconcat 'identity sorted-missing ", ")))))))
+
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
