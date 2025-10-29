@@ -176,3 +176,25 @@ New headings are inserted at top of file as level 1, sorted alphabetically."
       (get-buffer-create "*scratch*"))))
 
 (setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
+
+(require 'helm)
+
+(global-set-key (kbd "M-x") #'helm-M-x)
+(global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
+(global-set-key (kbd "C-x C-f") #'helm-find-files)
+(global-set-key (kbd "C-c h") 'helm-command-prefix)
+(global-unset-key (kbd "C-x c"))
+
+(define-key helm-map (kbd "C-z") 'helm-select-action)
+
+(setq helm-move-to-line-cycle-in-source t
+      helm-ff-search-library-in-sexp t
+      helm-scroll-amount 8
+      helm-ff-file-name-history-use-recentf t
+      helm-echo-input-in-header-line t)
+
+(setq helm-autoresize-max-height 0
+      helm-autoresize-min-height 20)
+(helm-autoresize-mode 1)
+
+(helm-mode 1)
