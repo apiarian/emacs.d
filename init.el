@@ -194,7 +194,9 @@ New headings are inserted at top of file as level 1, sorted alphabetically."
       helm-echo-input-in-header-line t)
 
 (setq helm-autoresize-max-height 0
-      helm-autoresize-min-height 20)
+      helm-autoresize-min-height 80)
 (helm-autoresize-mode 1)
 
 (helm-mode 1)
+
+(setq project-mode-line 1)
