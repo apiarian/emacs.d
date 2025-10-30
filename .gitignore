@@ -3,3 +3,5 @@
 /elpa/
 /forge-database.sqlite
 /transient/
+*.bak
+/projects
