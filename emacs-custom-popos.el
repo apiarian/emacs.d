@@ -7,7 +7,9 @@
  '(custom-enabled-themes '(wheatgrass))
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages '(dumb-jump forge magit markdown-mode which-key)))
+ '(package-selected-packages '(dumb-jump forge helm helm-org magit markdown-mode which-key))
+ '(tab-bar-mode t)
+ '(tool-bar-mode nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
