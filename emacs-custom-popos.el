@@ -6,8 +6,10 @@
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(wheatgrass))
  '(inhibit-startup-screen t)
+ '(org-agenda-files '("~/notes/misc.org"))
  '(org-hide-emphasis-markers t)
- '(package-selected-packages '(dumb-jump forge helm helm-org magit markdown-mode which-key))
+ '(package-selected-packages
+   '(dumb-jump forge helm helm-org magit markdown-mode which-key))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
