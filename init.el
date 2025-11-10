@@ -8,6 +8,34 @@
   (when (file-exists-p host-init)
     (load host-init)))
 
+;; Auto-switch theme based on macOS appearance
+(if (and (eq system-type 'darwin)
+         (display-graphic-p))
+    (progn
+      (defvar my-current-theme-is-dark nil
+        "Track current theme to avoid unnecessary reloads.")
+
+      (defun my-macos-dark-mode-p ()
+        "Return t if macOS is in dark mode."
+        (string= "Dark"
+                 (string-trim
+                  (shell-command-to-string
+                   "defaults read -g AppleInterfaceStyle 2>/dev/null"))))
+
+      (defun my-sync-theme-with-system ()
+        "Sync Emacs theme with macOS appearance."
+        (let ((is-dark (my-macos-dark-mode-p)))
+          (unless (eq is-dark my-current-theme-is-dark)
+            (setq my-current-theme-is-dark is-dark)
+            (mapc #'disable-theme custom-enabled-themes)
+            (if is-dark
+                (load-theme 'wheatgrass t)
+              (load-theme 'modus-operandi t)))))
+
+      (my-sync-theme-with-system)
+      (run-with-timer 3 3 'my-sync-theme-with-system))
+  (load-theme 'wheatgrass t))
+
 					; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
 (use-package tab-bar
   :ensure nil

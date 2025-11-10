@@ -8,8 +8,8 @@
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(dockerfile-mode dumb-jump forge helm helm-org magit markdown-mode
-		     typescript-mode which-key yaml-mode))
+   '(auto-dark dockerfile-mode dumb-jump forge helm helm-org magit
+	       markdown-mode typescript-mode which-key yaml-mode))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
