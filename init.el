@@ -244,6 +244,47 @@ Only prompts to update links if [[*Heading]] links exist."
           (replace-match (format "[[#%s][%s]]" custom-id heading-text)))
         (message "Updated %d link(s) to use #%s" count custom-id)))))
 
+(defun my-helm-insert-org-custom-id-link ()
+  "Insert link to heading with CUSTOM_ID using helm.
+Searches all .org files in ~/notes/ directory."
+  (interactive)
+  (let ((headings '())
+        (notes-dir (expand-file-name "~/notes/"))
+        (current-file (buffer-file-name)))
+    ;; Find all .org files in notes directory
+    (dolist (file (directory-files notes-dir t "\\.org$"))
+      (with-current-buffer (find-file-noselect file)
+        (save-excursion
+          (goto-char (point-min))
+          (while (re-search-forward org-outline-regexp-bol nil t)
+            (let ((heading (org-get-heading t t t t))
+                  (id (org-entry-get nil "CUSTOM_ID"))
+                  (filename (file-name-nondirectory file)))
+              (when id
+                (push (cons (format "[%s] %s  →  #%s" filename heading id)
+                           (list id heading file))
+                      headings)))))))
+    (if (not headings)
+        (message "No headings with CUSTOM_ID found in %s" notes-dir)
+      (helm :sources (helm-build-sync-source "Headings with CUSTOM_ID"
+                       :candidates (nreverse headings)
+                       :action '(("Insert link" .
+                                 (lambda (choice)
+                                   (let ((id (nth 0 choice))
+                                         (heading (nth 1 choice))
+                                         (file (nth 2 choice)))
+                                     (if (string= file current-file)
+                                         ;; Same file: use #id
+                                         (insert (format "[[#%s][%s]]" id heading))
+                                       ;; Different file: use file:path::#id
+                                       (insert (format "[[file:%s::#%s][%s]]"
+                                                     (file-name-nondirectory file)
+                                                     id heading))))))))
+            :buffer "*helm org custom id*"))))
+
+(global-set-key (kbd "C-c l") 'org-store-link)
+(global-set-key (kbd "C-c L") 'my-helm-insert-org-custom-id-link)
+
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
