@@ -215,12 +215,14 @@ Only prompts to update links if [[*Heading]] links exist."
     (org-back-to-heading t)
     (let* ((heading-text (org-get-heading t t t t))
            (existing-id (org-entry-get nil "CUSTOM_ID"))
-           (custom-id (or existing-id
-                         (replace-regexp-in-string
-                          "[^a-z0-9-]" ""
-                          (replace-regexp-in-string
-                           " " "-"
-                           (downcase heading-text)))))
+           (auto-generated-id (replace-regexp-in-string
+                               "[^a-z0-9-]" ""
+                               (replace-regexp-in-string
+                                " " "-"
+                                (downcase heading-text))))
+           (custom-id (if existing-id
+                         existing-id
+                       (read-string "CUSTOM_ID: " auto-generated-id)))
            (link-pattern (format "\\[\\[\\*%s\\]\\]" (regexp-quote heading-text)))
            (count 0))
 
