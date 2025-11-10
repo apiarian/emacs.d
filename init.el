@@ -169,6 +169,41 @@ New headings are inserted at top of file as level 1, sorted alphabetically."
                    (if (> (length sorted-missing) 1) "s" "")
                    (mapconcat 'identity sorted-missing ", ")))))))
 
+(defun org-convert-heading-link-to-tag ()
+  "Convert links to current heading into tags.
+
+When called on a heading:
+1. Prompts for tag name
+2. Adds tag to current heading
+3. Finds all [[*Heading]] links in file
+4. Replaces links with plain text
+5. Adds tag to headings that contained links"
+  (interactive)
+  (save-excursion
+    (org-back-to-heading t)
+    (let* ((heading-text (org-get-heading t t t t))  ; Just heading text, no tags/todo
+           (tag-name (read-string (format "Tag for '%s': " heading-text)))
+           (link-pattern (format "\\[\\[\\*%s\\]\\]" (regexp-quote heading-text)))
+           (count 0))
+
+      ;; Add tag to current heading
+      (org-set-tags (cons tag-name (org-get-tags)))
+
+      ;; Find and replace all links to this heading
+      (goto-char (point-min))
+      (while (re-search-forward link-pattern nil t)
+        (replace-match (format "_%s_" heading-text))
+        (setq count (1+ count))
+
+        ;; Tag the heading that contained this link
+        (save-excursion
+          (org-back-to-heading t)
+          (let ((tags (org-get-tags)))
+            (unless (member tag-name tags)
+              (org-set-tags (cons tag-name tags))))))
+
+      (message "Converted %d link(s) to tag ':%s:'" count tag-name))))
+
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
