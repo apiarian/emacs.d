@@ -204,6 +204,44 @@ When called on a heading:
 
       (message "Converted %d link(s) to tag ':%s:'" count tag-name))))
 
+(defun org-add-custom-id-and-update-links ()
+  "Add CUSTOM_ID to current heading and optionally update links.
+
+Auto-generates ID from heading text (lowercase, dashes for spaces).
+If ID already exists, uses existing one.
+Only prompts to update links if [[*Heading]] links exist."
+  (interactive)
+  (save-excursion
+    (org-back-to-heading t)
+    (let* ((heading-text (org-get-heading t t t t))
+           (existing-id (org-entry-get nil "CUSTOM_ID"))
+           (custom-id (or existing-id
+                         (replace-regexp-in-string
+                          "[^a-z0-9-]" ""
+                          (replace-regexp-in-string
+                           " " "-"
+                           (downcase heading-text)))))
+           (link-pattern (format "\\[\\[\\*%s\\]\\]" (regexp-quote heading-text)))
+           (count 0))
+
+      ;; Add CUSTOM_ID if not present
+      (unless existing-id
+        (org-set-property "CUSTOM_ID" custom-id)
+        (message "Added CUSTOM_ID: %s" custom-id))
+
+      ;; Check if any [[*Heading]] links exist
+      (goto-char (point-min))
+      (while (re-search-forward link-pattern nil t)
+        (setq count (1+ count)))
+
+      ;; Only ask to update if links found
+      (when (and (> count 0)
+                 (y-or-n-p (format "Found %d link(s). Update to use #%s? " count custom-id)))
+        (goto-char (point-min))
+        (while (re-search-forward link-pattern nil t)
+          (replace-match (format "[[#%s][%s]]" custom-id heading-text)))
+        (message "Updated %d link(s) to use #%s" count custom-id)))))
+
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
