@@ -298,6 +298,120 @@ Searches all .org files in ~/notes/ directory."
     (isearch-resume heading-text nil nil t nil t)))
 (global-set-key (kbd "C-c s") 'org-search-current-heading)
 
+(use-package obsidian-import
+  :ensure nil
+  :init
+  (defun import-obsidian-markdown--convert-with-pandoc (md-file)
+    "Convert markdown file MD-FILE to org-mode format using pandoc.
+Returns org-mode content as string."
+    (let ((pandoc-cmd (format "pandoc -f markdown+wikilinks_title_after_pipe -t org %s"
+                             (shell-quote-argument md-file))))
+      (shell-command-to-string pandoc-cmd)))
+
+  (defun import-obsidian-markdown--fix-wikilinks (org-content)
+    "Fix wikilinks in ORG-CONTENT.
+Convert [[file:PAGE]] to _PAGE_
+Convert [[file:PAGE][ALIAS]] to _ALIAS_ (PAGE) if different, or _ALIAS_ if same"
+    (with-temp-buffer
+      (insert org-content)
+      (goto-char (point-min))
+      ;; First handle links with aliases: [[file:PAGE][ALIAS]]
+      (while (re-search-forward "\\[\\[file:\\([^]]+\\)\\]\\[\\([^]]+\\)\\]\\]" nil t)
+        (let ((page (match-string 1))
+              (alias (match-string 2)))
+          (if (string= page alias)
+              ;; If alias same as page, just show alias underlined
+              (replace-match (format "_%s_" alias) t t)
+            ;; If different, show both
+            (replace-match (format "_%s_ (%s)" alias page) t t))))
+      ;; Then handle simple links: [[file:PAGE]] -> _PAGE_
+      (goto-char (point-min))
+      (while (re-search-forward "\\[\\[file:\\([^]]+\\)\\]\\]" nil t)
+        (let ((page (match-string 1)))
+          (replace-match (format "_%s_" page) t t)))
+      (buffer-string)))
+
+  (defun import-obsidian-markdown--archive-file (md-file project-root)
+    "Archive MD-FILE to .obsidian-archive/ preserving directory structure.
+PROJECT-ROOT is the root directory of the project."
+    (let* ((relative-path (file-relative-name md-file project-root))
+           (archive-dir (expand-file-name ".obsidian-archive" project-root))
+           (archive-path (expand-file-name relative-path archive-dir))
+           (archive-parent-dir (file-name-directory archive-path)))
+      ;; Create archive directory structure if needed
+      (unless (file-exists-p archive-parent-dir)
+        (make-directory archive-parent-dir t))
+      ;; Handle filename conflicts by adding timestamp
+      (when (file-exists-p archive-path)
+        (let ((timestamp (format-time-string "%Y%m%d-%H%M%S"))
+              (base-name (file-name-sans-extension archive-path))
+              (extension (file-name-extension archive-path t)))
+          (setq archive-path (format "%s-%s%s" base-name timestamp extension))))
+      ;; Move the file
+      (rename-file md-file archive-path)
+      (message "Archived to: %s" (file-relative-name archive-path project-root))))
+
+  (defun import-obsidian-markdown--insert-in-org (filename content)
+    "Insert org content as child heading under current heading with FILENAME as title."
+    (let* ((heading-level (condition-case nil
+                              (progn
+                                (org-back-to-heading t)
+                                (1+ (org-current-level)))  ; One level deeper = child
+                            (error 1)))
+           (basename (file-name-sans-extension
+                     (file-name-nondirectory filename))))
+      ;; Move to end of current heading (before any subheadings)
+      (condition-case nil
+          (progn
+            (org-back-to-heading t)
+            (outline-next-heading))
+        (error (goto-char (point-max))))
+      ;; Insert blank line if needed
+      (unless (bolp) (insert "\n"))
+      ;; Insert new heading as child
+      (insert (make-string heading-level ?*) " " basename "\n")
+      ;; Insert content under the heading
+      (insert content)
+      (unless (string-suffix-p "\n" content)
+        (insert "\n"))))
+
+  (defun import-obsidian-markdown-to-org ()
+    "Import Obsidian markdown file from current project to org-mode.
+Uses helm to select .md file, converts to org-mode with pandoc,
+fixes wikilinks to underlined text, inserts after current heading,
+and archives original file to .obsidian-archive/."
+    (interactive)
+    (let* ((project (project-current))
+           (project-root (if project
+                            (project-root project)
+                          (user-error "Not in a project. Use M-x project-find-file first"))))
+      ;; Find all .md files in project
+      (let* ((all-files (project-files project))
+             (md-files (seq-filter (lambda (f) (string-suffix-p ".md" f)) all-files))
+             (candidates (mapcar (lambda (f)
+                                  (cons (file-relative-name f project-root) f))
+                                md-files)))
+        (if (not md-files)
+            (message "No markdown files found in project")
+          ;; Show helm selector
+          (helm :sources (helm-build-sync-source "Import Markdown File"
+                           :candidates candidates
+                           :action '(("Import to org-mode" .
+                                     (lambda (md-file)
+                                       (let* ((org-content (import-obsidian-markdown--convert-with-pandoc md-file))
+                                              (fixed-content (import-obsidian-markdown--fix-wikilinks org-content)))
+                                         ;; Insert in current buffer
+                                         (unless (derived-mode-p 'org-mode)
+                                           (user-error "Current buffer must be in org-mode"))
+                                         (import-obsidian-markdown--insert-in-org md-file fixed-content)
+                                         ;; Archive the original file
+                                         (import-obsidian-markdown--archive-file md-file project-root)
+                                         (message "Imported %s" (file-name-nondirectory md-file)))))))
+                :buffer "*helm import markdown*")))))
+
+  :bind
+  ("C-c i" . import-obsidian-markdown-to-org))
+
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
