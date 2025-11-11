@@ -124,6 +124,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)
 (add-hook 'text-mode-hook 'turn-on-auto-fill)
 (require 'org-mouse)
+(setq org-agenda-files "~/notes/")
+(setq org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 1)))
+(setq org-refile-use-outline-path 'file)
 
 (defun org-create-missing-headings ()
   "Find all internal links in current org buffer and create missing headings.
