@@ -124,7 +124,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)
 (add-hook 'text-mode-hook 'turn-on-auto-fill)
 (require 'org-mouse)
-(setq org-agenda-files "~/notes/")
+(setq org-agenda-files (list "~/notes/"))
 (setq org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 1)))
 (setq org-refile-use-outline-path 'file)
 
@@ -287,6 +287,16 @@ Searches all .org files in ~/notes/ directory."
 
 (global-set-key (kbd "C-c l") 'org-store-link)
 (global-set-key (kbd "C-c L") 'my-helm-insert-org-custom-id-link)
+(global-set-key (kbd "C-c C-h") 'helm-org-agenda-files-headings)
+
+(defun org-search-current-heading ()
+  "Search for the current heading."
+  (interactive)
+  (org-back-to-heading t)
+  (let ((heading-text (org-get-heading t t t t)))
+    (goto-char (point-min))
+    (isearch-resume heading-text nil nil t nil t)))
+(global-set-key (kbd "C-c s") 'org-search-current-heading)
 
 					; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
