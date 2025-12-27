@@ -448,11 +448,17 @@ and archives original file to .obsidian-archive/."
 
 (setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
 
+(setq last-swapped-window-register nil)
+
 (defun swap-window-register ()
   (interactive)
-  (let* ((current-register (register-read-with-preview "Current window register"))
-	 (next-register (register-read-with-preview "Next window register")))
+  (let* ((current-register
+	  (if last-swapped-window-register
+	      last-swapped-window-register
+	    (register-read-with-preview "Current window register")))
+	 (next-register (register-read-with-preview (format "Next window register (current is %c)" current-register))))
     (window-configuration-to-register current-register)
+    (setq last-swapped-window-register next-register)
     (if (get-register next-register)
 	(jump-to-register next-register)
       (progn
