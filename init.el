@@ -305,7 +305,7 @@ Searches all .org files in ~/notes/ directory."
     "Convert markdown file MD-FILE to org-mode format using pandoc.
 Returns org-mode content as string."
     (let ((pandoc-cmd (format "pandoc -f markdown+wikilinks_title_after_pipe -t org %s"
-                             (shell-quote-argument md-file))))
+                             (shell-quote-argument md-file t))))
       (shell-command-to-string pandoc-cmd)))
 
   (defun import-obsidian-markdown--fix-wikilinks (org-content)
@@ -447,6 +447,20 @@ and archives original file to .obsidian-archive/."
       (get-buffer-create "*scratch*"))))
 
 (setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
+
+(defun swap-window-register ()
+  (interactive)
+  (let* ((current-register (register-read-with-preview "Current window register"))
+	 (next-register (register-read-with-preview "Next window register")))
+    (window-configuration-to-register current-register)
+    (if (get-register next-register)
+	(jump-to-register next-register)
+      (progn
+	(delete-other-windows)
+	(switch-to-buffer (get-buffer-create "*scratch*"))
+	(window-configuration-to-register next-register)))))
+
+(global-set-key (kbd "C-c w s") 'swap-window-register)
 
 (require 'helm)
 
