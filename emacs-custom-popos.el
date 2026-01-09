@@ -9,7 +9,8 @@
  '(org-agenda-files '("~/notes/misc.org"))
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(dumb-jump forge helm helm-org magit markdown-mode which-key))
+   '(dumb-jump forge helm helm-org helm-slime magit markdown-mode slime
+	       which-key))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

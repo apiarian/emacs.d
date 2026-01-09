@@ -8,6 +8,9 @@
   (when (file-exists-p host-init)
     (load host-init)))
 
+(set-language-environment "UTF-8")
+(setenv "LC_CTYPE" "en_US.UTF-8")
+
 ;; Auto-switch theme based on macOS appearance
 (if (and (eq system-type 'darwin)
          (display-graphic-p))
@@ -491,3 +494,9 @@ and archives original file to .obsidian-archive/."
 (helm-mode 1)
 
 (setq project-mode-line 1)
+
+(setq inferior-lisp-program "sbcl")
+
+(require 'slime)
+(slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl))
+(load "~/quicklisp/clhs-use-local.el" 'noerror)
