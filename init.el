@@ -464,7 +464,7 @@ and archives original file to .obsidian-archive/."
 			 (format
 			  "Next window register (current is %c, last was %c)"
 			  current-register
-			  swap-window-register--last-from))))
+			  (or swap-window-register--last-from ??)))))
     (window-configuration-to-register current-register)
     (setq swap-window-register--last-into next-register)
     (setq swap-window-register--last-from current-register)
