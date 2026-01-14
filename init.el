@@ -486,6 +486,7 @@ and archives original file to .obsidian-archive/."
 	     (last-register swap-window-register--last-from))
 	(setq swap-window-register--last-into last-register)
 	(setq swap-window-register--last-from current-register)
+	(window-configuration-to-register current-register)
 	(jump-to-register last-register)))))
 
 (global-set-key (kbd "C-c w s") 'swap-window-register)
