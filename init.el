@@ -451,17 +451,23 @@ and archives original file to .obsidian-archive/."
 
 (setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
 
-(setq last-swapped-window-register nil)
+(setq swap-window-register--last-into nil)
+(setq swap-window-register--last-from nil)
 
 (defun swap-window-register ()
   (interactive)
   (let* ((current-register
-	  (if last-swapped-window-register
-	      last-swapped-window-register
+	  (if swap-window-register--last-into
+	      swap-window-register--last-into
 	    (register-read-with-preview "Current window register")))
-	 (next-register (register-read-with-preview (format "Next window register (current is %c)" current-register))))
+	 (next-register (register-read-with-preview
+			 (format
+			  "Next window register (current is %c, last was %c)"
+			  current-register
+			  swap-window-register--last-from))))
     (window-configuration-to-register current-register)
-    (setq last-swapped-window-register next-register)
+    (setq swap-window-register--last-into next-register)
+    (setq swap-window-register--last-from current-register)
     (if (get-register next-register)
 	(jump-to-register next-register)
       (progn
@@ -469,7 +475,21 @@ and archives original file to .obsidian-archive/."
 	(switch-to-buffer (get-buffer-create "*scratch*"))
 	(window-configuration-to-register next-register)))))
 
+(defun swap-window-register-last ()
+  (interactive)
+  (if (or
+       (null swap-window-register--last-from)
+       (null swap-window-register--last-into))
+      (swap-window-register)
+    (progn
+      (let* ((current-register swap-window-register--last-into)
+	     (last-register swap-window-register--last-from))
+	(setq swap-window-register--last-into last-register)
+	(setq swap-window-register--last-from current-register)
+	(jump-to-register last-register)))))
+
 (global-set-key (kbd "C-c w s") 'swap-window-register)
+(global-set-key (kbd "C-c w x") 'swap-window-register-last)
 
 (require 'helm)
 
