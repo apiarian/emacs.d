@@ -491,6 +491,9 @@ and archives original file to .obsidian-archive/."
 (global-set-key (kbd "C-c w s") 'swap-window-register)
 (global-set-key (kbd "C-c w x") 'swap-window-register-last)
 
+;;; this may be useful. maybe.
+;;; (equal 'window-configuration (type-of (car (get-register (register-read-with-preview "foo")))))
+
 (require 'helm)
 
 (global-set-key (kbd "M-x") #'helm-M-x)
