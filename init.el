@@ -11,6 +11,8 @@
 (set-language-environment "UTF-8")
 (setenv "LC_CTYPE" "en_US.UTF-8")
 
+(setq solarized-high-contrast-mode-line nil)
+
 ;; Theme switching (available on all platforms)
 (defvar my-current-theme-is-dark :unknown
   "Track current theme to avoid unnecessary reloads.")
@@ -20,11 +22,11 @@
 
 (defun my-select-dark-theme ()
   "Load the dark theme."
-  (load-theme 'wheatgrass t))
+  (load-theme 'solarized-dark-high-contrast t))
 
 (defun my-select-light-theme ()
   "Load the light theme."
-  (load-theme 'modus-operandi t))
+  (load-theme 'solarized-light-high-contrast t))
 
 (defun my-toggle-theme ()
   "Toggle between light and dark themes, disabling auto-sync."
