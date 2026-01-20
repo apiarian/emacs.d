@@ -11,13 +11,35 @@
 (set-language-environment "UTF-8")
 (setenv "LC_CTYPE" "en_US.UTF-8")
 
-;; Auto-switch theme based on macOS appearance
+;; Theme switching (available on all platforms)
+(defvar my-current-theme-is-dark :unknown
+  "Track current theme to avoid unnecessary reloads.")
+
+(defvar my-theme-manual-override nil
+  "When non-nil, auto-sync is disabled.")
+
+(defun my-select-dark-theme ()
+  "Load the dark theme."
+  (load-theme 'wheatgrass t))
+
+(defun my-select-light-theme ()
+  "Load the light theme."
+  (load-theme 'modus-operandi t))
+
+(defun my-toggle-theme ()
+  "Toggle between light and dark themes, disabling auto-sync."
+  (interactive)
+  (setq my-theme-manual-override t)
+  (setq my-current-theme-is-dark (not my-current-theme-is-dark))
+  (mapc #'disable-theme custom-enabled-themes)
+  (if my-current-theme-is-dark
+      (my-select-dark-theme)
+    (my-select-light-theme)))
+
+;; macOS: auto-switch theme based on system appearance
 (if (and (eq system-type 'darwin)
          (display-graphic-p))
     (progn
-      (defvar my-current-theme-is-dark nil
-        "Track current theme to avoid unnecessary reloads.")
-
       (defun my-macos-dark-mode-p ()
         "Return t if macOS is in dark mode."
         (string= "Dark"
@@ -27,17 +49,25 @@
 
       (defun my-sync-theme-with-system ()
         "Sync Emacs theme with macOS appearance."
-        (let ((is-dark (my-macos-dark-mode-p)))
-          (unless (eq is-dark my-current-theme-is-dark)
-            (setq my-current-theme-is-dark is-dark)
-            (mapc #'disable-theme custom-enabled-themes)
-            (if is-dark
-                (load-theme 'wheatgrass t)
-              (load-theme 'modus-operandi t)))))
+        (unless my-theme-manual-override
+          (let ((is-dark (my-macos-dark-mode-p)))
+            (unless (eq is-dark my-current-theme-is-dark)
+              (setq my-current-theme-is-dark is-dark)
+              (mapc #'disable-theme custom-enabled-themes)
+              (if is-dark
+                  (my-select-dark-theme)
+                (my-select-light-theme))))))
+
+      (defun my-theme-follow-system ()
+        "Re-enable auto-sync and immediately sync with system preference."
+        (interactive)
+        (setq my-theme-manual-override nil)
+        (setq my-current-theme-is-dark :unknown)
+        (my-sync-theme-with-system))
 
       (my-sync-theme-with-system)
       (run-with-timer 3 3 'my-sync-theme-with-system))
-  (load-theme 'wheatgrass t))
+  (my-select-dark-theme))
 
 					; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
 (use-package tab-bar
