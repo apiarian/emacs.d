@@ -524,3 +524,11 @@ and archives original file to .obsidian-archive/."
 (require 'slime)
 (slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl))
 (load "~/quicklisp/clhs-use-local.el" 'noerror)
+
+(use-package go-ts-mode
+  :init
+  (add-to-list 'treesit-language-source-alist '(go "https://github.com/tree-sitter/tree-sitter-go"))
+  (add-to-list 'treesit-language-source-alist '(gomod "https://github.com/camdencheek/tree-sitter-go-mod"))
+  (add-to-list 'auto-mode-alist '("\\.go\\'" . go-ts-mode))
+  (add-to-list 'auto-mode-alist '("/go\\.mode\\'" . go-mod-ts-mode))
+  )
