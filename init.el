@@ -483,6 +483,8 @@ and archives original file to .obsidian-archive/."
 
 (setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
 
+(setq register-preview-delay 0.2)
+
 (setq swap-window-register--last-into nil)
 (setq swap-window-register--last-from nil)
 
@@ -497,6 +499,8 @@ and archives original file to .obsidian-archive/."
 			  "Next window register (current is %c, last was %c)"
 			  current-register
 			  (or swap-window-register--last-from ??)))))
+    (when (eq current-register next-register)
+      (user-error "Cannot swap to the same register (%c)" current-register))
     (window-configuration-to-register current-register)
     (setq swap-window-register--last-into next-register)
     (setq swap-window-register--last-from current-register)
