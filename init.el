@@ -75,6 +75,7 @@
 (use-package tab-bar
   :ensure nil
   :custom
+  (tab-bar-show 1)
   (tab-bar-close-button-show nil)
   (tab-bar-new-button-show nil)
   (tab-bar-tab-hints t)
@@ -483,7 +484,7 @@ and archives original file to .obsidian-archive/."
 
 (setq tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
 
-(setq register-preview-delay 0.2)
+(setq register-preview-delay 0)
 
 (setq swap-window-register--last-into nil)
 (setq swap-window-register--last-from nil)
