@@ -17,8 +17,9 @@
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
    '(auto-dark dockerfile-mode dumb-jump forge gruvbox-theme helm
-	       helm-org helm-slime magit markdown-mode slime
-	       solarized-theme typescript-mode which-key yaml-mode))
+	       helm-org helm-slime highlight-thing magit markdown-mode
+	       slime solarized-theme typescript-mode which-key
+	       yaml-mode))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

@@ -138,6 +138,8 @@
 
 (setq auth-sources '("~/.authinfo"))
 
+(add-hook 'prog-mode-hook 'highlight-thing-mode)
+
 (use-package magit
   :config
   (defun my-magit-branch-read-with-prefix (orig-fun prompt &optional initial-input &rest args)
