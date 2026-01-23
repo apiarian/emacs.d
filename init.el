@@ -135,6 +135,8 @@
 (require 'package)
 (add-to-list 'package-archives
 	     '("melpa" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives
+             '("nongnu" . "https://elpa.nongnu.org/nongnu/") t)
 
 (setq auth-sources '("~/.authinfo"))
 
@@ -157,6 +159,26 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 
 (use-package forge
   :after magit)
+
+(when (bound-and-true-p my-enable-claude-code)
+  ;; Claude Code dependencies
+  (use-package inheritenv
+    :vc (:url "https://github.com/purcell/inheritenv" :rev :newest))
+
+  (use-package eat
+    :ensure t)
+
+  ;; Claude Code with Monet IDE integration
+  (use-package monet
+    :vc (:url "https://github.com/stevemolitor/monet" :rev :newest))
+
+  (use-package claude-code
+    :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
+    :bind-keymap ("C-c c" . claude-code-command-map)
+    :config
+    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
+    (monet-mode 1)
+    (claude-code-mode 1)))
 
 (add-hook 'org-mode-hook 'org-indent-mode)
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)

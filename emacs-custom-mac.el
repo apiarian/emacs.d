@@ -16,10 +16,13 @@
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(auto-dark dockerfile-mode dumb-jump forge gruvbox-theme helm
-	       helm-org helm-slime highlight-thing magit markdown-mode
-	       slime solarized-theme typescript-mode which-key
-	       yaml-mode))
+   '(auto-dark claude-code dockerfile-mode dumb-jump eat forge
+	       gruvbox-theme helm helm-org helm-slime highlight-thing
+	       inheritenv magit markdown-mode monet slime
+	       solarized-theme typescript-mode which-key yaml-mode))
+ '(package-vc-selected-packages
+   '((claude-code :url "https://github.com/stevemolitor/claude-code.el")
+     (monet :url "https://github.com/stevemolitor/monet")))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
