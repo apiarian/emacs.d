@@ -170,7 +170,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 
   ;; Claude Code with Monet IDE integration
   (use-package monet
-    :vc (:url "https://github.com/stevemolitor/monet" :rev :newest))
+    :vc (:url "https://github.com/stevemolitor/monet" :rev :newest)
+    :custom
+    (monet-do-not-disturb t))
 
   (use-package claude-code
     :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
@@ -178,7 +180,11 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
     :config
     (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
     (monet-mode 1)
-    (claude-code-mode 1)))
+    (claude-code-mode 1)
+    ;; Auto-focus Claude buffer when starting
+    (advice-add 'claude-code :around
+                (lambda (orig-fun &optional arg)
+                  (funcall orig-fun (or arg '(4)))))))
 
 (add-hook 'org-mode-hook 'org-indent-mode)
 (add-hook 'text-mode-hook 'turn-on-visual-line-mode)
