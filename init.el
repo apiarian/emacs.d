@@ -13,6 +13,11 @@
 
 (setq solarized-high-contrast-mode-line nil)
 
+;; Window dividers for better pane separation
+(setq window-divider-default-right-width 3)
+(setq window-divider-default-bottom-width 3)
+(window-divider-mode 1)
+
 ;; Theme switching (available on all platforms)
 (defvar my-current-theme-is-dark :unknown
   "Track current theme to avoid unnecessary reloads.")
