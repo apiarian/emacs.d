@@ -76,7 +76,23 @@
       (run-with-timer 3 3 'my-sync-theme-with-system))
   (my-select-dark-theme))
 
-					; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
+; Source - https://stackoverflow.com/a/60826269
+; Posted by Ryan Marcus
+; Retrieved 2026-02-07, License - CC BY-SA 4.0
+(defun my-backward-kill-word ()
+  "Remove all whitespace if the character behind the cursor is whitespace, otherwise remove a word."
+  (interactive)
+  (if (looking-back "[ \n]")
+      ;; delete horizontal space before us and then check to see if we
+      ;; are looking at a newline
+      (progn (delete-horizontal-space 't)
+             (while (looking-back "[ \n]")
+               (backward-delete-char 1)))
+    ;; otherwise, just do the normal kill word.
+    (backward-kill-word 1)))
+(global-set-key (kbd "M-DEL") #'my-backward-kill-word)
+
+;; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
 (use-package tab-bar
   :ensure nil
   :custom
