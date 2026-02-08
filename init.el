@@ -161,9 +161,12 @@
 
 (setq auth-sources '("~/.authinfo"))
 
-(add-hook 'prog-mode-hook 'highlight-thing-mode)
+(use-package highlight-thing
+  :ensure t
+  :hook (prog-mode . highlight-thing-mode))
 
 (use-package magit
+  :ensure t
   :config
   (defun my-magit-branch-read-with-prefix (orig-fun prompt &optional initial-input &rest args)
     "Add branch prefix when reading branch names in magit.
@@ -179,7 +182,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix))
 
 (use-package forge
-  :after magit)
+  :ensure t
+  :after magit
+  :demand t)
 
 (when (bound-and-true-p my-enable-claude-code)
   ;; Claude Code dependencies
