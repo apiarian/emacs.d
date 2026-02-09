@@ -55,6 +55,10 @@
 (setq vc-make-backup-files t)
 (setq version-control t)
 
+;; Prevent accidental quits
+(global-unset-key (kbd "C-x C-c"))
+(setq confirm-kill-emacs 'y-or-n-p)
+
 ;; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
@@ -706,7 +710,20 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (agent-shell-display-action '(display-buffer-below-selected))
   :config
   (when (bound-and-true-p my-default-agent)
-    (setq agent-shell-preferred-agent-config my-default-agent)))
+    (setq agent-shell-preferred-agent-config my-default-agent))
+
+  (defun my-agent-shell-restart ()
+    "Kill the current agent shell and start a fresh one with the same config."
+    (interactive)
+    (let ((config (agent-shell-get-config (current-buffer)))
+          (win (selected-window)))
+      (unless config
+        (user-error "Not in an agent-shell buffer"))
+      (kill-buffer)
+      (let ((new-buf (agent-shell--start :config config
+                                         :no-focus t
+                                         :new-session t)))
+        (set-window-buffer win new-buf)))))
 
 (defun my-update-acp-adapters ()
   "Update ACP adapter packages to latest versions."
