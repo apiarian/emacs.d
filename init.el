@@ -1,4 +1,4 @@
-					; install missing packages with package-install-selected-packages
+;; install missing packages with package-install-selected-packages
 
 ;; Load host-specific config if exists
 ;; To find your hostname, run in terminal: hostname
@@ -91,6 +91,22 @@
     ;; otherwise, just do the normal kill word.
     (backward-kill-word 1)))
 (global-set-key (kbd "M-DEL") #'my-backward-kill-word)
+
+(defun my-open-line-below ()
+  "Open a new line below the current one and move to it (like vim o)."
+  (interactive)
+  (end-of-line)
+  (newline-and-indent))
+
+(defun my-open-line-above ()
+  "Open a new line above the current one and move to it (like vim O)."
+  (interactive)
+  (beginning-of-line)
+  (open-line 1)
+  (indent-according-to-mode))
+
+(global-set-key (kbd "C-o") #'my-open-line-below)
+(global-set-key (kbd "C-S-o") #'my-open-line-above)
 
 ;; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
 (use-package tab-bar
@@ -219,7 +235,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (setq org-agenda-files (list "~/notes/"))
 (setq org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 1)))
 (setq org-refile-use-outline-path 'file)
-
+(setq org-startup-folded 'fold)
 (defun org-create-missing-headings ()
   "Find all internal links in current org buffer and create missing headings.
 New headings are inserted at top of file as level 1, sorted alphabetically."
