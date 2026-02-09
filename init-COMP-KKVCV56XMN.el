@@ -1,12 +1,17 @@
 ;; Host-specific configuration for COMP-KKVCV56XMN
 
-;; Enable Claude Code integration on this machine
-(defvar my-enable-claude-code t
-  "When non-nil, load claude-code.el and related packages.")
+;; Default AI agent for agent-shell
+(defvar my-default-agent 'claude-code
+  "Preferred agent for agent-shell on this host.")
 
 ;; Set custom-file for this host
 (setq custom-file "~/.emacs.d/emacs-custom-mac.el")
 (load custom-file)
+
+;; Volta (node/npm) binaries
+(let ((volta-bin (expand-file-name "~/.volta/bin")))
+  (setenv "PATH" (concat (getenv "PATH") ":" volta-bin))
+  (add-to-list 'exec-path volta-bin))
 
 ;; Default prefix for new Git branches in magit
 (defvar my-magit-branch-prefix "aleksandr.pasechnik/"

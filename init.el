@@ -55,6 +55,8 @@
 
 ;;;; Theme
 
+(use-package solarized-theme :ensure t :defer t)
+
 (setq solarized-high-contrast-mode-line nil)
 
 (defvar my-current-theme-is-dark :unknown
@@ -207,8 +209,36 @@
 	(window-configuration-to-register current-register)
 	(jump-to-register last-register)))))
 
+(defun delete-window-register ()
+  "Delete a window register and reset swap tracking state."
+  (interactive)
+  (let ((reg (register-read-with-preview "Delete register")))
+    (set-register reg nil)
+    (setq swap-window-register--last-into nil)
+    (setq swap-window-register--last-from nil)
+    (message "Deleted register %c and reset swap state" reg)))
+
 (global-set-key (kbd "C-c w s") 'swap-window-register)
 (global-set-key (kbd "C-c w x") 'swap-window-register-last)
+(global-set-key (kbd "C-c w d") 'delete-window-register)
+
+(defun kill-buffer-and-close-window (&optional arg)
+  "Kill the current buffer and close the window or switch register.
+With prefix ARG, prompt for a buffer to kill instead."
+  (interactive "P")
+  (if arg
+      (call-interactively #'kill-buffer)
+    (kill-this-buffer)
+    (if (> (count-windows) 1)
+        (delete-window)
+      (switch-to-buffer (get-buffer-create "*scratch*"))
+      (swap-window-register))))
+
+(global-set-key (kbd "C-x k") #'kill-buffer-and-close-window)
+
+(use-package which-key
+  :ensure t
+  :config (which-key-mode))
 
 ;;;; Tab Bar
 
@@ -291,6 +321,10 @@
   (global-unset-key (kbd "C-x c"))
   (helm-autoresize-mode 1)
   (helm-mode 1))
+
+(use-package helm-org
+  :ensure t
+  :after helm)
 
 ;;;; Org Mode
 
@@ -633,6 +667,11 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (add-to-list 'treesit-language-source-alist '(go "https://github.com/tree-sitter/tree-sitter-go"))
   (add-to-list 'treesit-language-source-alist '(gomod "https://github.com/camdencheek/tree-sitter-go-mod")))
 
+(use-package dockerfile-mode :ensure t :defer t)
+(use-package yaml-mode :ensure t :defer t)
+(use-package markdown-mode :ensure t :defer t)
+(use-package typescript-mode :ensure t :defer t)
+
 ;;;; Lisp Development
 
 (use-package slime
@@ -643,30 +682,28 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl))
   (load "~/quicklisp/clhs-use-local.el" 'noerror))
 
-;;;; Claude Code
+;;;; Agent Shell
+;;
+;; System dependencies (install/update periodically):
+;;   npm install -g @anthropic-ai/claude-code
+;;   npm install -g @zed-industries/claude-code-acp
+;;   npm install -g @mariozechner/pi-coding-agent pi-acp
 
-(when (bound-and-true-p my-enable-claude-code)
-  ;; Claude Code dependencies
-  (use-package inheritenv
-    :vc (:url "https://github.com/purcell/inheritenv" :rev :newest))
+(use-package shell-maker
+  :vc (:url "https://github.com/xenodium/shell-maker" :rev :newest))
 
-  (use-package eat
-    :ensure t)
+(use-package acp
+  :vc (:url "https://github.com/xenodium/acp.el" :rev :newest))
 
-  ;; Claude Code with Monet IDE integration
-  (use-package monet
-    :vc (:url "https://github.com/stevemolitor/monet" :rev :newest)
-    :custom
-    (monet-do-not-disturb t))
+(use-package agent-shell
+  :vc (:url "https://github.com/xenodium/agent-shell" :rev :newest)
+  :custom
+  (agent-shell-display-action '(display-buffer-below-selected))
+  :config
+  (when (bound-and-true-p my-default-agent)
+    (setq agent-shell-preferred-agent-config my-default-agent)))
 
-  (use-package claude-code
-    :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
-    :bind-keymap ("C-c c" . claude-code-command-map)
-    :config
-    (add-hook 'claude-code-process-environment-functions #'monet-start-server-function)
-    (monet-mode 1)
-    (claude-code-mode 1)
-    ;; Auto-focus Claude buffer when starting
-    (advice-add 'claude-code :around
-                (lambda (orig-fun &optional arg)
-                  (funcall orig-fun (or arg '(4)))))))
+(defun my-update-acp-adapters ()
+  "Update ACP adapter packages to latest versions."
+  (interactive)
+  (async-shell-command "zsh -i -c 'npm install -g @zed-industries/claude-code-acp @mariozechner/pi-coding-agent pi-acp'"))
