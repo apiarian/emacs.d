@@ -1,6 +1,11 @@
 ;;; init.el --- Personal Emacs configuration -*- lexical-binding: t; -*-
 
-;; install missing packages with package-install-selected-packages
+;; Adding a package:
+;;   1. Add a (use-package foo :ensure t) declaration in the appropriate section
+;;   2. Eval it with C-M-x to install immediately, or restart Emacs
+;;
+;; Reinstalling all packages (e.g. on a fresh machine):
+;;   M-x package-refresh-contents, then restart Emacs
 
 ;; Load host-specific config if exists
 ;; To find your hostname, run in terminal: hostname
