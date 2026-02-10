@@ -79,6 +79,11 @@ Supported values: go, typescript, slime.")
 (use-package solarized-theme :ensure t :defer t)
 
 (setq solarized-high-contrast-mode-line nil)
+(setq solarized-scale-org-headlines t)
+(setq solarized-height-plus-4 1.6)
+(setq solarized-height-plus-3 1.5)
+(setq solarized-height-plus-2 1.4)
+(setq solarized-height-plus-1 1.3)
 
 (defvar my-current-theme-is-dark :unknown
   "Track current theme to avoid unnecessary reloads.")
@@ -86,13 +91,20 @@ Supported values: go, typescript, slime.")
 (defvar my-theme-manual-override nil
   "When non-nil, auto-sync is disabled.")
 
+(defun my-fix-org-heading-heights ()
+  "Ensure org levels 5-8 are slightly larger than body text."
+  (dolist (face '(org-level-5 org-level-6 org-level-7 org-level-8))
+    (set-face-attribute face nil :height 1.2)))
+
 (defun my-select-dark-theme ()
   "Load the dark theme."
-  (load-theme 'solarized-dark-high-contrast t))
+  (load-theme 'solarized-dark-high-contrast t)
+  (my-fix-org-heading-heights))
 
 (defun my-select-light-theme ()
   "Load the light theme."
-  (load-theme 'solarized-light-high-contrast t))
+  (load-theme 'solarized-light-high-contrast t)
+  (my-fix-org-heading-heights))
 
 (defun my-toggle-theme ()
   "Toggle between light and dark themes, disabling auto-sync."
@@ -355,6 +367,8 @@ With prefix ARG, prompt for a buffer to kill instead."
          (text-mode . turn-on-visual-line-mode)
          (text-mode . turn-on-auto-fill))
   :custom
+  (org-auto-align-tags nil)
+  (org-tags-column 0)
   (org-agenda-files (list "~/notes/"))
   (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 1)))
   (org-refile-use-outline-path 'file)
