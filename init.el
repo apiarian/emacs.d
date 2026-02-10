@@ -6,6 +6,12 @@
 ;;
 ;; Reinstalling all packages (e.g. on a fresh machine):
 ;;   M-x package-refresh-contents, then restart Emacs
+;;
+;; Updating packages:
+;;   Emacs (MELPA):  M-x package-upgrade-all
+;;   Emacs (VC):     M-x package-vc-upgrade-all  (shell-maker, acp, agent-shell)
+;;   ACP adapters:   M-x my-update-acp-adapters
+;;   Claude Code:    npm install -g @anthropic-ai/claude-code
 
 ;; Load host-specific config if exists
 ;; To find your hostname, run in terminal: hostname
