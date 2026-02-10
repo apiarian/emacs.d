@@ -155,19 +155,17 @@ Supported values: go, typescript, slime.")
 
 ;;;; Custom Editing Commands
 
-; Source - https://stackoverflow.com/a/60826269
-; Posted by Ryan Marcus
-; Retrieved 2026-02-07, License - CC BY-SA 4.0
 (defun my-backward-kill-word ()
-  "Remove all whitespace if the character behind the cursor is whitespace, otherwise remove a word."
+  "Delete backward intelligently depending on context.
+If only whitespace before point on the current line, join with the
+previous line by deleting all whitespace back to the previous
+non-whitespace character.  Otherwise, `backward-kill-word'."
   (interactive)
-  (if (looking-back "[ \n]")
-      ;; delete horizontal space before us and then check to see if we
-      ;; are looking at a newline
-      (progn (delete-horizontal-space 't)
-             (while (looking-back "[ \n]")
-               (backward-delete-char 1)))
-    ;; otherwise, just do the normal kill word.
+  (if (save-excursion
+        (skip-chars-backward " \t" (line-beginning-position))
+        (bolp))
+      (delete-region (point)
+                     (progn (skip-chars-backward " \t\n") (point)))
     (backward-kill-word 1)))
 (global-set-key (kbd "M-DEL") #'my-backward-kill-word)
 
