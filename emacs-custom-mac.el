@@ -15,7 +15,11 @@
      default))
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(agent-shell avy claude-code dockerfile-mode dumb-jump forge god-mode
+		 helm-org highlight-thing monet org-modern
+		 org-modern-indent slime solarized-theme
+		 typescript-mode yaml-mode))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

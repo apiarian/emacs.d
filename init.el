@@ -275,6 +275,79 @@ With prefix ARG, prompt for a buffer to kill instead."
   :ensure t
   :config (which-key-mode))
 
+;;;; Navigation
+
+(use-package avy
+  :ensure t
+  :bind ("C-;" . avy-goto-char-timer))
+
+(use-package god-mode
+  :ensure t
+  :demand t
+  :config
+  (defun my-god-mode-toggle-or-quit ()
+    "Toggle god-local-mode, or quit the minibuffer if active."
+    (interactive)
+    (if (minibufferp)
+        (abort-recursive-edit)
+      (god-local-mode)))
+  (global-set-key (kbd "<escape>") #'my-god-mode-toggle-or-quit)
+
+  (defun my-god-mode-update-cursor-type ()
+    (setq cursor-type (if (or god-local-mode buffer-read-only) 'box 'bar)))
+  (add-hook 'post-command-hook #'my-god-mode-update-cursor-type)
+
+  (setcdr (assq 'god-local-mode minor-mode-alist)
+          (list (propertize " GOD" 'face
+                            '(:background "#dc322f" :foreground "#fdf6e3" :weight bold))))
+
+  (define-key god-local-mode-map (kbd "<escape>") #'god-local-mode)
+  (define-key god-local-mode-map (kbd ".") #'repeat)
+  (define-key god-local-mode-map (kbd "[") #'backward-paragraph)
+  (define-key god-local-mode-map (kbd "]") #'forward-paragraph)
+
+  (require 'god-mode-isearch)
+  (define-key isearch-mode-map (kbd "<escape>") #'god-mode-isearch-activate)
+  (define-key god-mode-isearch-map (kbd "<escape>") #'god-mode-isearch-disable))
+
+;; God-mode window shortcuts — makes x 1/2/3/0 work in god-mode
+(global-set-key (kbd "C-x C-1") #'delete-other-windows)
+(global-set-key (kbd "C-x C-2") #'split-and-follow-horizontally)
+(global-set-key (kbd "C-x C-3") #'split-and-follow-vertically)
+(global-set-key (kbd "C-x C-0") #'delete-window)
+
+;; Vim-style scrolling — screen moves, cursor keeps its screen position
+(defun my-scroll-up-line ()
+  "Scroll one line forward, keeping cursor at same screen position."
+  (interactive)
+  (scroll-up 1)
+  (forward-line 1))
+
+(defun my-scroll-down-line ()
+  "Scroll one line backward, keeping cursor at same screen position."
+  (interactive)
+  (scroll-down 1)
+  (forward-line -1))
+
+(defun my-scroll-up-quarter ()
+  "Scroll forward by a quarter page, keeping cursor at same screen position."
+  (interactive)
+  (let ((amount (max 1 (/ (window-body-height) 4))))
+    (scroll-up amount)
+    (forward-line amount)))
+
+(defun my-scroll-down-quarter ()
+  "Scroll backward by a quarter page, keeping cursor at same screen position."
+  (interactive)
+  (let ((amount (max 1 (/ (window-body-height) 4))))
+    (scroll-down amount)
+    (forward-line (- amount))))
+
+(global-set-key (kbd "C-S-n") #'my-scroll-up-line)
+(global-set-key (kbd "C-S-p") #'my-scroll-down-line)
+(global-set-key (kbd "M-n") #'my-scroll-up-quarter)
+(global-set-key (kbd "M-p") #'my-scroll-down-quarter)
+
 ;;;; Tab Bar
 
 ;; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
