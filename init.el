@@ -80,10 +80,10 @@ Supported values: go, typescript, slime.")
 
 (setq solarized-high-contrast-mode-line nil)
 (setq solarized-scale-org-headlines t)
-(setq solarized-height-plus-4 1.6)
-(setq solarized-height-plus-3 1.5)
-(setq solarized-height-plus-2 1.4)
-(setq solarized-height-plus-1 1.3)
+(setq solarized-height-plus-4 1.40)
+(setq solarized-height-plus-3 1.35)
+(setq solarized-height-plus-2 1.30)
+(setq solarized-height-plus-1 1.25)
 
 (defvar my-current-theme-is-dark :unknown
   "Track current theme to avoid unnecessary reloads.")
