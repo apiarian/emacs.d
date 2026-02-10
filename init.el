@@ -71,6 +71,10 @@ Supported values: go, typescript, slime.")
 (global-unset-key (kbd "C-x C-c"))
 (setq confirm-kill-emacs 'y-or-n-p)
 
+;; Disable mail composition
+(global-unset-key (kbd "C-x m"))
+(global-unset-key (kbd "C-x 4 m"))
+
 ;; see also https://www.masteringemacs.org/article/mastering-key-bindings-emacs
 (global-set-key (kbd "C-M-o") 'browse-url-at-point)
 
