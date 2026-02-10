@@ -17,9 +17,15 @@
 ;; To find your hostname, run in terminal: hostname
 ;; Or in Emacs: M-: (system-name)
 ;; Then create file: init-{hostname}.el (e.g., init-COMP-KKVCV56XMN.el)
+;; Host configs set my-host-packages to control optional package loading (go, typescript, slime)
 (let ((host-init (concat user-emacs-directory "init-" (system-name) ".el")))
   (when (file-exists-p host-init)
     (load host-init)))
+
+(defvar my-host-packages nil
+  "List of optional package features enabled on this host.
+Set in host-specific init-{hostname}.el files.
+Supported values: go, typescript, slime.")
 
 ;;;; Package Infrastructure
 
@@ -676,6 +682,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (add-hook 'xref-backend-functions #'dumb-jump-xref-activate))
 
 (use-package go-ts-mode
+  :if (memq 'go my-host-packages)
   :mode ("\\.go\\'" . go-ts-mode)
   :mode ("/go\\.mod\\'" . go-mod-ts-mode)
   :config
@@ -685,11 +692,12 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package dockerfile-mode :ensure t :defer t)
 (use-package yaml-mode :ensure t :defer t)
 (use-package markdown-mode :ensure t :defer t)
-(use-package typescript-mode :ensure t :defer t)
+(use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
 
 ;;;; Lisp Development
 
 (use-package slime
+  :if (memq 'slime my-host-packages)
   :ensure t
   :custom
   (inferior-lisp-program "sbcl")

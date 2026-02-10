@@ -13,6 +13,9 @@
   (setenv "PATH" (concat (getenv "PATH") ":" volta-bin))
   (add-to-list 'exec-path volta-bin))
 
+;; Host-specific optional packages (used by :if in init.el)
+(setq my-host-packages '(go typescript))
+
 ;; Default prefix for new Git branches in magit
 (defvar my-magit-branch-prefix "aleksandr.pasechnik/"
   "Default prefix for new Git branches in magit.")
