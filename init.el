@@ -811,6 +811,11 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :vc (:url "https://github.com/xenodium/agent-shell" :rev :newest)
   :custom
   (agent-shell-display-action '(display-buffer-below-selected))
+  (agent-shell-transcript-file-path-function
+   (lambda ()
+     (let ((dir (expand-file-name ".agent-shell/transcripts" user-emacs-directory)))
+       (make-directory dir t)
+       (expand-file-name (format-time-string "%F-%H-%M-%S.md") dir))))
   :config
   (when (bound-and-true-p my-default-agent)
     (setq agent-shell-preferred-agent-config my-default-agent))
