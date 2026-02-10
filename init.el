@@ -45,6 +45,7 @@ Supported values: go, typescript, slime.")
 (if window-system
     (tool-bar-mode -1))
 (global-auto-revert-mode 1)
+(setq-default cursor-type 'bar)
 (setq register-preview-delay 0)
 (setq project-mode-line 1)
 
@@ -298,8 +299,7 @@ With prefix ARG, prompt for a buffer to kill instead."
   (add-hook 'post-command-hook #'my-god-mode-update-cursor-type)
 
   (setcdr (assq 'god-local-mode minor-mode-alist)
-          (list (propertize " GOD" 'face
-                            '(:background "#dc322f" :foreground "#fdf6e3" :weight bold))))
+          '((" " (:propertize "GOD" face (:background "#dc322f" :foreground "#fdf6e3" :weight bold)))))
 
   (define-key god-local-mode-map (kbd "<escape>") #'god-local-mode)
   (define-key god-local-mode-map (kbd ".") #'repeat)
