@@ -348,6 +348,16 @@ With prefix ARG, prompt for a buffer to kill instead."
 (global-set-key (kbd "M-n") #'my-scroll-up-quarter)
 (global-set-key (kbd "M-p") #'my-scroll-down-quarter)
 
+;; Find file at point — opens in other window to preserve current buffer
+(ffap-bindings)
+(setq ffap-file-finder 'find-file-other-window)
+(global-set-key [s-mouse-1] (lambda (event)
+                               (interactive "e")
+                               (mouse-set-point event)
+                               (if-let ((filename (ffap-file-at-point)))
+                                   (find-file-other-window filename)
+                                 (message "No file at point"))))
+
 ;;;; Tab Bar
 
 ;; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
