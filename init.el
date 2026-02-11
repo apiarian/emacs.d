@@ -49,6 +49,29 @@ Supported values: go, typescript, slime.")
 (setq register-preview-delay 0)
 (setq project-mode-line 1)
 
+;; Mode-line close button
+(progn
+  (defun my-mode-line-close-window (event)
+    "Close the window whose mode-line was clicked."
+    (interactive "e")
+    (delete-window (posn-window (event-start event))))
+
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mode-line mouse-1] #'my-mode-line-close-window)
+    (setq my-mode-line-close-button
+          `(" "
+            (:propertize "×"
+                         face (:weight bold)
+                         mouse-face mode-line-highlight
+                         help-echo "mouse-1: Close this window"
+                         local-map ,map))))
+  (put 'my-mode-line-close-button 'risky-local-variable t)
+
+  (unless (memq 'my-mode-line-close-button (default-value 'mode-line-format))
+    (setq-default mode-line-format
+                  (append (default-value 'mode-line-format)
+                          '(my-mode-line-close-button)))))
+
 ;; Window dividers
 (setq window-divider-default-right-width 3)
 (setq window-divider-default-bottom-width 3)
