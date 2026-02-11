@@ -6,13 +6,8 @@
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(wheatgrass))
  '(inhibit-startup-screen t)
- '(org-agenda-files '("~/notes/misc.org"))
  '(org-hide-emphasis-markers t)
- '(package-selected-packages
-   '(dockerfile-mode dumb-jump forge helm helm-org helm-slime
-		     highlight-thing magit markdown-mode paredit
-		     paredit-menu slime solarized-theme which-key
-		     yaml-mode))
+ '(package-selected-packages nil)
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
