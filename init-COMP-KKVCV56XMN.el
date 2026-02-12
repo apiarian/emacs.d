@@ -10,7 +10,7 @@
 
 ;; Volta (node/npm) binaries
 (let ((volta-bin (expand-file-name "~/.volta/bin")))
-  (setenv "PATH" (concat (getenv "PATH") ":" volta-bin))
+  (setenv "PATH" (concat volta-bin ":" (getenv "PATH")))
   (add-to-list 'exec-path volta-bin))
 
 ;; Host-specific optional packages (used by :if in init.el)

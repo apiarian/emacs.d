@@ -121,6 +121,7 @@ Supported values: go, typescript, slime.")
 
 (defun my-fix-org-heading-heights ()
   "Ensure org levels 5-8 are slightly larger than body text."
+  (require 'org)
   (dolist (face '(org-level-5 org-level-6 org-level-7 org-level-8))
     (set-face-attribute face nil :height 1.2)))
 
