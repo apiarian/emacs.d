@@ -19,7 +19,7 @@
    '(agent-shell avy claude-code dockerfile-mode dumb-jump forge god-mode
 		 helm-org highlight-thing monet org-modern
 		 org-modern-indent slime solarized-theme
-		 typescript-mode yaml-mode))
+		 typescript-mode undo-tree yaml-mode))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

@@ -178,6 +178,18 @@ Supported values: go, typescript, slime.")
       (run-with-timer 3 3 'my-sync-theme-with-system))
   (my-select-dark-theme))
 
+;;;; Undo Tree
+
+(use-package undo-tree
+  :ensure t
+  :demand t
+  :bind (("C-z" . undo-tree-undo)
+         ("C-S-z" . undo-tree-redo))
+  :custom
+  (undo-tree-auto-save-history nil)
+  :config
+  (global-undo-tree-mode))
+
 ;;;; Custom Editing Commands
 
 (defun my-backward-kill-word ()
@@ -318,12 +330,14 @@ With prefix ARG, prompt for a buffer to kill instead."
       (god-local-mode)))
   (global-set-key (kbd "<escape>") #'my-god-mode-toggle-or-quit)
 
-  (defun my-god-mode-update-cursor-type ()
-    (setq cursor-type (if (or god-local-mode buffer-read-only) 'box 'bar)))
-  (add-hook 'post-command-hook #'my-god-mode-update-cursor-type)
+  (defun my-god-mode-update-cursor ()
+    (let ((god (or god-local-mode buffer-read-only)))
+      (setq cursor-type (if god 'box 'bar))
+      (set-cursor-color (if god (face-foreground 'error) (face-foreground 'default)))))
+  (add-hook 'post-command-hook #'my-god-mode-update-cursor)
 
   (setcdr (assq 'god-local-mode minor-mode-alist)
-          '((" " (:propertize "GOD" face (:background "#dc322f" :foreground "#fdf6e3" :weight bold)))))
+          '((" " (:propertize "GOD" face (:inherit error :inverse-video t :weight bold)))))
 
   (define-key god-local-mode-map (kbd "<escape>") #'god-local-mode)
   (define-key god-local-mode-map (kbd ".") #'repeat)
@@ -850,7 +864,15 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
      (let ((dir (expand-file-name ".agent-shell/transcripts" user-emacs-directory)))
        (make-directory dir t)
        (expand-file-name (format-time-string "%F-%H-%M-%S.md") dir))))
+  :bind
+  (:map agent-shell-mode-map
+   ("C-c C-c" . my-agent-shell-interrupt-now))
   :config
+  (defun my-agent-shell-interrupt-now ()
+    "Interrupt agent shell immediately, skipping confirmation."
+    (interactive)
+    (agent-shell-interrupt t))
+
   (when (bound-and-true-p my-default-agent)
     (setq agent-shell-preferred-agent-config my-default-agent))
 
