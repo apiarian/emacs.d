@@ -893,3 +893,84 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   "Update ACP adapter packages to latest versions."
   (interactive)
   (async-shell-command "zsh -i -c 'npm install -g @zed-industries/claude-code-acp @mariozechner/pi-coding-agent pi-acp'"))
+
+;; ---------------------------------------------------------------------------
+;; agent-shell patches for pi-acp compatibility (2026-02-21)
+;;
+;; Two issues when running pi via agent-shell:
+;;
+;; 1. JSONRPC noise: pi-acp sends `session_info_update` notifications
+;;    (queue depth, running state) that agent-shell doesn't recognize,
+;;    so they fall through to the fallback handler and get dumped as
+;;    raw alists in the buffer.
+;;
+;; 2. Truncated tool headings: pi-acp sends tool titles as bare names
+;;    ("bash", "read", "edit") with the actual command in rawInput.command.
+;;    agent-shell only displays :title and :description in labels, never
+;;    :command, so you just see "bash" with no indication of what ran.
+;;
+;; HOW TO CHECK IF THESE ARE STILL NEEDED after upgrading agent-shell:
+;;   - Search agent-shell.el for "session_info_update". If it's handled
+;;     (not just in the fallback `t` clause), remove patch 1.
+;;   - Search agent-shell.el `agent-shell-make-tool-call-label` for
+;;     ":command". If the label logic uses it, remove patch 2.
+;;     Also check: https://github.com/xenodium/agent-shell/issues/229
+;;   - If both are fixed upstream, delete this entire section.
+;; ---------------------------------------------------------------------------
+
+;; Patch 1: Silence `session_info_update` notifications from pi-acp.
+;; These are internal metadata (queue depth, running state) that have
+;; no user-visible purpose.  Without this advice they hit the fallback
+;; handler and print raw JSONRPC alists into the shell buffer.
+(with-eval-after-load 'agent-shell
+  (define-advice agent-shell--on-notification
+      (:around (orig-fn &rest args) silence-session-info-update)
+    "Silently drop pi-acp session_info_update notifications."
+    (let* ((notification (plist-get args :notification))
+           (update (map-elt (map-elt notification 'params) 'update)))
+      (unless (equal (map-elt update 'sessionUpdate) "session_info_update")
+        (apply orig-fn args)))))
+
+;; Patch 2: Show :command in tool call labels when :description is absent.
+;; pi-acp puts the actual command string (e.g. "grep -n Phase README.md")
+;; in rawInput.command, which agent-shell stores as :command but never
+;; displays.  This override falls back to :command so the heading reads
+;; "bash  grep -n Phase README.md" instead of just "bash".
+;; Upstream issue: https://github.com/xenodium/agent-shell/issues/229
+(with-eval-after-load 'agent-shell
+  (define-advice agent-shell-make-tool-call-label
+      (:override (state tool-call-id) show-command-in-label)
+    "Like the original, but fall back to :command when :description is nil."
+    (when-let ((tool-call (map-nested-elt state `(:tool-calls ,tool-call-id))))
+      `((:status . ,(let ((status (when (map-elt tool-call :status)
+                                    (agent-shell--status-label (map-elt tool-call :status))))
+                          (kind (when (map-elt tool-call :kind)
+                                  (let* ((label-format (if (display-graphic-p) " %s " "[%s]")))
+                                    (agent-shell--add-text-properties
+                                     (propertize (format label-format (map-elt tool-call :kind))
+                                                 'font-lock-face 'default)
+                                     'font-lock-face
+                                     `(:box t))))))
+                      (concat
+                       (when status status)
+                       (when (and status kind) " ")
+                       (when kind kind))))
+        (:title . ,(let* ((title (when (map-elt tool-call :title)
+                                   (agent-shell--shorten-paths (map-elt tool-call :title))))
+                          (description (or (when (map-elt tool-call :description)
+                                             (agent-shell--shorten-paths (map-elt tool-call :description)))
+                                          ;; ← NEW: fall back to :command
+                                          (when (map-elt tool-call :command)
+                                            (agent-shell--shorten-paths (map-elt tool-call :command))))))
+                     (cond ((and title description
+                                 (not (equal (string-remove-prefix "`" (string-remove-suffix "`" (string-trim title)))
+                                             (string-remove-prefix "`" (string-remove-suffix "`" (string-trim description))))))
+                            (concat
+                             (propertize title 'font-lock-face 'font-lock-doc-markup-face)
+                             " "
+                             (propertize description 'font-lock-face 'font-lock-doc-face)))
+                           (title
+                            (propertize title 'font-lock-face 'font-lock-doc-markup-face))
+                           (description
+                            (propertize description 'font-lock-face 'font-lock-doc-markup-face)))))))))
+;; --- end agent-shell patches ---
