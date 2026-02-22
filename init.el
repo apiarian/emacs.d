@@ -897,7 +897,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 ;; ---------------------------------------------------------------------------
 ;; agent-shell patches for pi-acp compatibility (2026-02-21)
 ;;
-;; Two issues when running pi via agent-shell:
+;; Three issues when running pi via agent-shell:
 ;;
 ;; 1. JSONRPC noise: pi-acp sends `session_info_update` notifications
 ;;    (queue depth, running state) that agent-shell doesn't recognize,
@@ -909,38 +909,86 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 ;;    agent-shell only displays :title and :description in labels, never
 ;;    :command, so you just see "bash" with no indication of what ran.
 ;;
+;; 3. Partial streaming commands: pi-acp streams tool call arguments
+;;    incrementally (toolcall_start/delta/end).  The first event may
+;;    carry a partial rawInput.command (e.g. "grep" instead of
+;;    "grep -n \"File\" src/desk.tal").  agent-shell saves :command
+;;    on first sight and never updates it, so the heading stays
+;;    truncated.  Patch 3 clears stale :command/:description before
+;;    each tool_call_update so the merge always picks up the latest
+;;    (most complete) value.
+;;
 ;; HOW TO CHECK IF THESE ARE STILL NEEDED after upgrading agent-shell:
 ;;   - Search agent-shell.el for "session_info_update". If it's handled
 ;;     (not just in the fallback `t` clause), remove patch 1.
 ;;   - Search agent-shell.el `agent-shell-make-tool-call-label` for
-;;     ":command". If the label logic uses it, remove patch 2.
+;;     ":command" and ":raw-input". If the label logic uses them
+;;     (for bash commands and edit/read/write paths), remove patch 2.
 ;;     Also check: https://github.com/xenodium/agent-shell/issues/229
-;;   - If both are fixed upstream, delete this entire section.
+;;   - Search agent-shell.el `tool_call_update` handler for the
+;;     `(not (map-nested-elt state ...))` guards on :command and
+;;     :description.  If those guards are removed (i.e. command/
+;;     description always update), remove patch 3.
+;;   - If all are fixed upstream, delete this entire section.
 ;; ---------------------------------------------------------------------------
 
 ;; Patch 1: Silence `session_info_update` notifications from pi-acp.
 ;; These are internal metadata (queue depth, running state) that have
 ;; no user-visible purpose.  Without this advice they hit the fallback
 ;; handler and print raw JSONRPC alists into the shell buffer.
+;;
+;; Patch 3: Allow :command/:description to update on each tool_call_update.
+;; pi-acp streams tool args incrementally, so the first tool_call may carry
+;; a partial command string.  agent-shell's tool_call_update handler guards
+;; :command and :description with (not (already-set?)), locking in the
+;; partial value.  We clear them from state before the handler runs so the
+;; new (complete) value always wins.
 (with-eval-after-load 'agent-shell
   (define-advice agent-shell--on-notification
-      (:around (orig-fn &rest args) silence-session-info-update)
-    "Silently drop pi-acp session_info_update notifications."
+      (:around (orig-fn &rest args) pi-acp-notification-fixups)
+    "Fix pi-acp notifications: silence session_info_update, allow command updates."
     (let* ((notification (plist-get args :notification))
-           (update (map-elt (map-elt notification 'params) 'update)))
-      (unless (equal (map-elt update 'sessionUpdate) "session_info_update")
+           (update (map-elt (map-elt notification 'params) 'update))
+           (session-update-type (map-elt update 'sessionUpdate)))
+      ;; Patch 1: drop session_info_update
+      (unless (equal session-update-type "session_info_update")
+        ;; Patch 3: before tool_call_update, clear stale :command/:description
+        ;; so the "not already set" guards in the original handler pass through,
+        ;; allowing the latest (most complete) streamed value to be saved.
+        (when (equal session-update-type "tool_call_update")
+          (let* ((state (plist-get args :state))
+                 (tool-call-id (map-elt update 'toolCallId))
+                 (new-command (map-nested-elt update '(rawInput command)))
+                 (new-description (map-nested-elt update '(rawInput description)))
+                 (tool-calls (map-elt state :tool-calls))
+                 (existing (map-elt tool-calls tool-call-id)))
+            (when existing
+              (let ((cleaned existing))
+                ;; Clear :command if a new one arrived (will be re-set by original handler)
+                (when new-command
+                  (setq cleaned (map-delete cleaned :command)))
+                ;; Clear :description if a new one arrived
+                (when new-description
+                  (setq cleaned (map-delete cleaned :description)))
+                ;; Write back into state if anything changed
+                (unless (eq cleaned existing)
+                  (setf (map-elt tool-calls tool-call-id) cleaned))))))
         (apply orig-fn args)))))
 
-;; Patch 2: Show :command in tool call labels when :description is absent.
+;; Patch 2: Show :command (or rawInput.path) in tool call labels.
 ;; pi-acp puts the actual command string (e.g. "grep -n Phase README.md")
 ;; in rawInput.command, which agent-shell stores as :command but never
-;; displays.  This override falls back to :command so the heading reads
-;; "bash  grep -n Phase README.md" instead of just "bash".
+;; displays.  For tools like edit/read/write there is no :command or
+;; :description, but rawInput contains a `path` key with the file path.
+;; This override falls back to :command, then to rawInput.path, so:
+;;   bash  → "bash  grep -n Phase README.md"
+;;   edit  → "edit  ~/.emacs.d/init.el"
+;;   read  → "read  ~/.emacs.d/init.el"
 ;; Upstream issue: https://github.com/xenodium/agent-shell/issues/229
 (with-eval-after-load 'agent-shell
   (define-advice agent-shell-make-tool-call-label
       (:override (state tool-call-id) show-command-in-label)
-    "Like the original, but fall back to :command when :description is nil."
+    "Like the original, but fall back to :command / rawInput.path when :description is nil."
     (when-let ((tool-call (map-nested-elt state `(:tool-calls ,tool-call-id))))
       `((:status . ,(let ((status (when (map-elt tool-call :status)
                                     (agent-shell--status-label (map-elt tool-call :status))))
@@ -959,9 +1007,12 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
                                    (agent-shell--shorten-paths (map-elt tool-call :title))))
                           (description (or (when (map-elt tool-call :description)
                                              (agent-shell--shorten-paths (map-elt tool-call :description)))
-                                          ;; ← NEW: fall back to :command
+                                          ;; Fall back to :command (bash tools)
                                           (when (map-elt tool-call :command)
-                                            (agent-shell--shorten-paths (map-elt tool-call :command))))))
+                                            (agent-shell--shorten-paths (map-elt tool-call :command)))
+                                          ;; Fall back to rawInput.path (edit/read/write tools)
+                                          (when-let ((path (map-nested-elt tool-call '(:raw-input path))))
+                                            (agent-shell--shorten-paths path)))))
                      (cond ((and title description
                                  (not (equal (string-remove-prefix "`" (string-remove-suffix "`" (string-trim title)))
                                              (string-remove-prefix "`" (string-remove-suffix "`" (string-trim description))))))
