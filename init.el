@@ -49,6 +49,26 @@ Supported values: go, typescript, slime.")
 (setq register-preview-delay 0)
 (setq project-mode-line 1)
 
+;; Window zoom (tab-based, like tmux Z)
+(defvar my-zoom-active nil "Non-nil when current tab is a zoom tab.")
+
+(defun my-toggle-zoom ()
+  "Toggle zoom: open current buffer in a new tab, or close zoom tab."
+  (interactive)
+  (if my-zoom-active
+      (progn (setq my-zoom-active nil)
+             (tab-close))
+    (tab-new)
+    (delete-other-windows)
+    (setq my-zoom-active t)))
+
+(unless (assq 'my-zoom-active (default-value 'mode-line-format))
+  (setq-default mode-line-format
+                (cons '(my-zoom-active (:propertize " Z " face (:inverse-video t)))
+                      (default-value 'mode-line-format))))
+
+(global-set-key (kbd "C-x t z") #'my-toggle-zoom)
+
 ;; Mode-line close button
 (progn
   (defun my-mode-line-close-window (event)
@@ -80,7 +100,8 @@ Supported values: go, typescript, slime.")
 ;; macOS compatibility
 (when (and (eq system-type 'darwin) (executable-find "gls"))
   (setq insert-directory-program "gls"))
-(when (eq system-type 'darwin)
+(when (and (eq system-type 'darwin)
+           (not (string-match-p "/opt/homebrew/bin" (getenv "PATH"))))
   (setenv "PATH" (concat (getenv "PATH") ":/opt/homebrew/bin")))
 
 ;; Files and backups
@@ -115,6 +136,9 @@ Supported values: go, typescript, slime.")
 
 (defvar my-current-theme-is-dark :unknown
   "Track current theme to avoid unnecessary reloads.")
+
+(defvar my-theme-sync-timer nil
+  "Timer for macOS theme auto-sync.")
 
 (defvar my-theme-manual-override nil
   "When non-nil, auto-sync is disabled.")
@@ -175,7 +199,8 @@ Supported values: go, typescript, slime.")
         (my-sync-theme-with-system))
 
       (my-sync-theme-with-system)
-      (run-with-timer 3 3 'my-sync-theme-with-system))
+      (when my-theme-sync-timer (cancel-timer my-theme-sync-timer))
+      (setq my-theme-sync-timer (run-with-timer 3 3 'my-sync-theme-with-system)))
   (my-select-dark-theme))
 
 ;;;; Undo Tree
@@ -219,6 +244,7 @@ non-whitespace character.  Otherwise, `backward-kill-word'."
   (open-line 1)
   (indent-according-to-mode))
 
+(global-set-key (kbd "M-o") #'other-window)
 (global-set-key (kbd "C-o") #'my-open-line-below)
 (global-set-key (kbd "C-S-o") #'my-open-line-above)
 
@@ -241,11 +267,12 @@ non-whitespace character.  Otherwise, `backward-kill-word'."
 
 ;;;; Window Register Swap
 
-(setq swap-window-register--last-into nil)
-(setq swap-window-register--last-from nil)
+(defvar swap-window-register--last-into nil)
+(defvar swap-window-register--last-from nil)
 
 (defun swap-window-register ()
   (interactive)
+  (when my-zoom-active (my-toggle-zoom))
   (let* ((current-register
 	  (if swap-window-register--last-into
 	      swap-window-register--last-into
@@ -269,6 +296,7 @@ non-whitespace character.  Otherwise, `backward-kill-word'."
 
 (defun swap-window-register-last ()
   (interactive)
+  (when my-zoom-active (my-toggle-zoom))
   (if (or
        (null swap-window-register--last-from)
        (null swap-window-register--last-into))
@@ -398,59 +426,13 @@ With prefix ARG, prompt for a buffer to kill instead."
 
 ;;;; Tab Bar
 
-;; based on https://www.rahuljuliato.com/posts/emacs-tab-bar-groups
 (use-package tab-bar
   :ensure nil
   :custom
-  (tab-bar-show 1)
+  (tab-bar-show nil)
   (tab-bar-close-button-show nil)
   (tab-bar-new-button-show nil)
-  (tab-bar-tab-hints t)
-  (tab-bar-select-tab-modifiers '(super))
-  (tab-bar-auto-width nil)
-  (tab-bar-separator " ")
-  (tab-bar-format '(tab-bar-format-tabs-groups
-                    tab-bar-separator))
-  (tab-bar-new-tab-choice 'my-tab-bar-new-tab-dired)
-  :bind
-  ("C-x t g" . my-tab-switch-to-group)
-  :init
-  (defun tab-bar-tab-name-format-hints (name _tab i)
-    (if tab-bar-tab-hints (concat (format "%d:" i) name) name))
-
-  (defun tab-bar-tab-group-format-default (tab _i &optional current-p)
-    (propertize
-     (concat (funcall tab-bar-tab-group-function tab))
-     'face (if current-p 'tab-bar-tab-group-current 'tab-bar-tab-group-inactive)))
-
-  (defun my-tab-switch-to-group ()
-    "Prompt for a tab group and switch to its first tab. Uses position instead of index field."
-    (interactive)
-    (let* ((tabs (funcall tab-bar-tabs-function)))
-      (let* ((groups (delete-dups (mapcar (lambda (tab)
-					    (funcall tab-bar-tab-group-function tab))
-					  tabs)))
-	     (group (completing-read "Switch to group: " groups nil t)))
-	(let ((i 1) (found nil))
-	  (dolist (tab tabs)
-	    (let ((tab-group (funcall tab-bar-tab-group-function tab)))
-	      (when (and (not found)
-			 (string= tab-group group))
-		(setq found t)
-		(tab-bar-select-tab i)))
-	    (setq i (1+ i)))))))
-
-  (defun my-tab-bar-new-tab-dired ()
-    "Return dired buffer at current file location, or *scratch* buffer."
-    (let ((current-file (buffer-file-name)))
-      (if current-file
-          (let* ((dir (file-name-directory current-file))
-                 (dired-buf (dired-noselect dir)))
-            (with-current-buffer dired-buf
-              (dired-goto-file current-file))
-            dired-buf)
-        (get-buffer-create "*scratch*"))))
-
+  (tab-bar-new-tab-choice 'clone)
   :config
   (tab-bar-mode 1))
 
