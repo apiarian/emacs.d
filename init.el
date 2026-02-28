@@ -818,8 +818,8 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package slime
   :if (memq 'slime my-host-packages)
   :ensure t
-  :custom
-  (inferior-lisp-program "sbcl")
+  :init
+  (setq inferior-lisp-program "sbcl")
   :config
   (slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl))
   (load "~/quicklisp/clhs-use-local.el" 'noerror))

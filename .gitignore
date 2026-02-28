@@ -10,3 +10,4 @@
 /tramp
 /tree-sitter/
 /.agent-shell/
+/session.*
