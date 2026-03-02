@@ -49,6 +49,12 @@ Supported values: go, typescript, slime.")
 (setq register-preview-delay 0)
 (setq project-mode-line 1)
 
+;; New tab default: project root or scratch
+(defun my-new-tab-default ()
+  (if-let ((proj (project-current)))
+      (dired (project-root proj))
+    (switch-to-buffer (get-buffer-create "*scratch*"))))
+
 ;; Window zoom (tab-based, like tmux Z)
 (defvar my-zoom-active nil "Non-nil when current tab is a zoom tab.")
 
@@ -58,9 +64,11 @@ Supported values: go, typescript, slime.")
   (if my-zoom-active
       (progn (setq my-zoom-active nil)
              (tab-close))
-    (tab-new)
-    (delete-other-windows)
-    (setq my-zoom-active t)))
+    (let ((buf (current-buffer)))
+      (tab-new)
+      (switch-to-buffer buf)
+      (delete-other-windows)
+      (setq my-zoom-active t))))
 
 (unless (assq 'my-zoom-active (default-value 'mode-line-format))
   (setq-default mode-line-format
@@ -429,10 +437,10 @@ With prefix ARG, prompt for a buffer to kill instead."
 (use-package tab-bar
   :ensure nil
   :custom
-  (tab-bar-show nil)
-  (tab-bar-close-button-show nil)
+  (tab-bar-show 1)
+  (tab-bar-close-button-show t)
   (tab-bar-new-button-show nil)
-  (tab-bar-new-tab-choice 'clone)
+  (tab-bar-new-tab-choice #'my-new-tab-default)
   :config
   (tab-bar-mode 1))
 
