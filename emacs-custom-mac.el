@@ -16,7 +16,7 @@
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(agent-shell avy claude-code dockerfile-mode dumb-jump forge god-mode
+   '(avy dockerfile-mode dumb-jump forge god-mode
 		 helm-org highlight-thing monet org-modern
 		 org-modern-indent slime solarized-theme
 		 typescript-mode undo-tree yaml-mode))

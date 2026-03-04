@@ -1,9 +1,5 @@
 ;; Host-specific configuration for COMP-KKVCV56XMN
 
-;; Default AI agent for agent-shell
-(defvar my-default-agent 'claude-code
-  "Preferred agent for agent-shell on this host.")
-
 ;; Set custom-file for this host
 (setq custom-file "~/.emacs.d/emacs-custom-mac.el")
 (load custom-file)

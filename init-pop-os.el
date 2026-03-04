@@ -1,9 +1,5 @@
 ;; Host-specific configuration for pop-os
 
-;; Default AI agent for agent-shell
-(defvar my-default-agent 'pi
-  "Preferred agent for agent-shell on this host.")
-
 ;; nvm (node/npm) binaries — find the latest installed version
 (let* ((nvm-node-dir (expand-file-name "~/.nvm/versions/node"))
        (versions (and (file-directory-p nvm-node-dir)

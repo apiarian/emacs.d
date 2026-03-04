@@ -6,7 +6,7 @@
  ;; If there is more than one, they won't work right.
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages '(shell-maker))
+ '(package-selected-packages '())
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
