@@ -832,6 +832,6 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :init
   (setq inferior-lisp-program "sbcl")
   :config
-  (slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl))
+  (slime-setup '(slime-fancy slime-quicklisp slime-asdf))
   (load "~/quicklisp/clhs-use-local.el" 'noerror))
 
