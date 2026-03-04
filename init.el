@@ -100,6 +100,12 @@ Supported values: go, typescript, slime.")
                   (append (default-value 'mode-line-format)
                           '(my-mode-line-close-button)))))
 
+;; New frames open *scratch* instead of cloning current buffer
+(defun my-frame-scratch (frame)
+  (with-selected-frame frame
+    (switch-to-buffer "*scratch*")))
+(add-hook 'after-make-frame-functions #'my-frame-scratch)
+
 ;; Window dividers
 (setq window-divider-default-right-width 3)
 (setq window-divider-default-bottom-width 3)
