@@ -6,7 +6,10 @@
  ;; If there is more than one, they won't work right.
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(avy dockerfile-mode dumb-jump forge god-mode helm-org
+	 highlight-thing paredit slime solarized-theme typescript-mode
+	 undo-tree yaml-mode))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

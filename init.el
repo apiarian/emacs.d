@@ -167,38 +167,36 @@ Supported values: go, typescript, slime.")
     (my-select-light-theme)))
 
 ;; macOS: auto-switch theme based on system appearance
-(if (and (eq system-type 'darwin)
-         (display-graphic-p))
-    (progn
-      (defun my-macos-dark-mode-p ()
-        "Return t if macOS is in dark mode."
-        (string= "Dark"
-                 (string-trim
-                  (shell-command-to-string
-                   "defaults read -g AppleInterfaceStyle 2>/dev/null"))))
+(when (and (eq system-type 'darwin)
+           (display-graphic-p))
+  (defun my-macos-dark-mode-p ()
+    "Return t if macOS is in dark mode."
+    (string= "Dark"
+             (string-trim
+              (shell-command-to-string
+               "defaults read -g AppleInterfaceStyle 2>/dev/null"))))
 
-      (defun my-sync-theme-with-system ()
-        "Sync Emacs theme with macOS appearance."
-        (unless my-theme-manual-override
-          (let ((is-dark (my-macos-dark-mode-p)))
-            (unless (eq is-dark my-current-theme-is-dark)
-              (setq my-current-theme-is-dark is-dark)
-              (mapc #'disable-theme custom-enabled-themes)
-              (if is-dark
-                  (my-select-dark-theme)
-                (my-select-light-theme))))))
+  (defun my-sync-theme-with-system ()
+    "Sync Emacs theme with macOS appearance."
+    (unless my-theme-manual-override
+      (let ((is-dark (my-macos-dark-mode-p)))
+        (unless (eq is-dark my-current-theme-is-dark)
+          (setq my-current-theme-is-dark is-dark)
+          (mapc #'disable-theme custom-enabled-themes)
+          (if is-dark
+              (my-select-dark-theme)
+            (my-select-light-theme))))))
 
-      (defun my-theme-follow-system ()
-        "Re-enable auto-sync and immediately sync with system preference."
-        (interactive)
-        (setq my-theme-manual-override nil)
-        (setq my-current-theme-is-dark :unknown)
-        (my-sync-theme-with-system))
+  (defun my-theme-follow-system ()
+    "Re-enable auto-sync and immediately sync with system preference."
+    (interactive)
+    (setq my-theme-manual-override nil)
+    (setq my-current-theme-is-dark :unknown)
+    (my-sync-theme-with-system))
 
-      (my-sync-theme-with-system)
-      (when my-theme-sync-timer (cancel-timer my-theme-sync-timer))
-      (setq my-theme-sync-timer (run-with-timer 3 3 'my-sync-theme-with-system)))
-  (my-select-dark-theme))
+  (my-sync-theme-with-system)
+  (when my-theme-sync-timer (cancel-timer my-theme-sync-timer))
+  (setq my-theme-sync-timer (run-with-timer 3 3 'my-sync-theme-with-system)))
 
 ;;;; Undo Tree
 
@@ -795,7 +793,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :custom
   (dumb-jump-force-searcher 'rg)
   :init
-  (add-hook 'xref-backend-functions #'dumb-jump-xref-activate))
+  (add-hook 'xref-backend-functions #'dumb-jump-xref-activate 100))
 
 (use-package go-ts-mode
   :if (memq 'go my-host-packages)
@@ -811,6 +809,10 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
 
 ;;;; Lisp Development
+
+(use-package paredit
+  :ensure t
+  :hook ((emacs-lisp-mode lisp-mode lisp-interaction-mode slime-repl-mode scheme-mode) . paredit-mode))
 
 (use-package slime
   :if (memq 'slime my-host-packages)
