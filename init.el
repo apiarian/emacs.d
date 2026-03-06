@@ -136,14 +136,8 @@ Supported values: go, typescript, slime.")
 
 ;;;; Theme
 
-(use-package solarized-theme :ensure t :defer t)
-
-(setq solarized-high-contrast-mode-line nil)
-(setq solarized-scale-org-headlines t)
-(setq solarized-height-plus-4 1.40)
-(setq solarized-height-plus-3 1.35)
-(setq solarized-height-plus-2 1.30)
-(setq solarized-height-plus-1 1.25)
+;; modus-themes is built into Emacs 28+
+(use-package modus-themes :ensure nil :defer t)
 
 (defvar my-current-theme-is-dark :unknown
   "Track current theme to avoid unnecessary reloads.")
@@ -154,21 +148,13 @@ Supported values: go, typescript, slime.")
 (defvar my-theme-manual-override nil
   "When non-nil, auto-sync is disabled.")
 
-(defun my-fix-org-heading-heights ()
-  "Ensure org levels 5-8 are slightly larger than body text."
-  (require 'org)
-  (dolist (face '(org-level-5 org-level-6 org-level-7 org-level-8))
-    (set-face-attribute face nil :height 1.2)))
-
 (defun my-select-dark-theme ()
   "Load the dark theme."
-  (load-theme 'solarized-dark-high-contrast t)
-  (my-fix-org-heading-heights))
+  (load-theme 'modus-vivendi-tinted t))
 
 (defun my-select-light-theme ()
   "Load the light theme."
-  (load-theme 'solarized-light-high-contrast t)
-  (my-fix-org-heading-heights))
+  (load-theme 'modus-operandi-tinted t))
 
 (defun my-toggle-theme ()
   "Toggle between light and dark themes, disabling auto-sync."

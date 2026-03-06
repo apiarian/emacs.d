@@ -16,10 +16,10 @@
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
-   '(avy dockerfile-mode dumb-jump forge god-mode
-		 helm-org highlight-thing monet org-modern
-		 org-modern-indent slime solarized-theme
-		 typescript-mode undo-tree yaml-mode))
+   '(avy catppuccin-theme dockerfile-mode dumb-jump forge god-mode
+	 helm-org highlight-thing kanagawa-themes monet org-modern
+	 org-modern-indent slime solarized-theme typescript-mode
+	 undo-tree yaml-mode))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
