@@ -38,6 +38,23 @@ Called externally by darkman via emacsclient."
     (setenv "PATH" (concat nvm-bin ":" (getenv "PATH")))
     (add-to-list 'exec-path nvm-bin)))
 
+;; When running as a daemon (systemd), import graphical session
+;; env vars so browse-url/xdg-open can find the display.
+;; Runs on every new frame since DISPLAY can change between sessions.
+(when (daemonp)
+  (defun my-update-env-from-systemd ()
+    "Import DISPLAY, WAYLAND_DISPLAY, etc. from the systemd user session."
+    (dolist (var '("DISPLAY" "WAYLAND_DISPLAY" "XDG_SESSION_TYPE"
+                   "XDG_CURRENT_DESKTOP" "XDG_RUNTIME_DIR"))
+      (let ((val (string-trim
+                  (shell-command-to-string
+                   (format "systemctl --user show-environment 2>/dev/null | grep '^%s=' | cut -d= -f2-" var)))))
+        (unless (string-empty-p val)
+          (setenv var val)))))
+  (add-hook 'server-after-make-frame-hook #'my-update-env-from-systemd)
+  ;; Also run once at init for the first frame
+  (add-hook 'after-init-hook #'my-update-env-from-systemd))
+
 ;; Host-specific optional packages (used by :if in init.el)
 (setq my-host-packages '(slime))
 
