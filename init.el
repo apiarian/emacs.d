@@ -123,6 +123,13 @@ Supported values: go, typescript, slime.")
 (setq vc-make-backup-files t)
 (setq version-control t)
 
+;; Keep auto-save files out of project directories
+(setq auto-save-file-name-transforms
+      '((".*" "~/.emacs.d/auto-saves/" t)))
+
+;; Don't create lock files (.#foo)
+(setq create-lockfiles nil)
+
 ;; Prevent accidental quits
 (global-unset-key (kbd "C-x C-c"))
 (setq confirm-kill-emacs 'y-or-n-p)
