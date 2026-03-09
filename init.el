@@ -247,6 +247,9 @@ non-whitespace character.  Otherwise, `backward-kill-word'."
   (indent-according-to-mode))
 
 (global-set-key (kbd "M-o") #'other-window)
+(global-set-key (kbd "M-i") (lambda () (interactive) (other-window -1)))
+(global-set-key (kbd "M-O") #'tab-next)
+(global-set-key (kbd "M-I") #'tab-previous)
 (global-set-key (kbd "C-o") #'my-open-line-below)
 (global-set-key (kbd "C-S-o") #'my-open-line-above)
 
