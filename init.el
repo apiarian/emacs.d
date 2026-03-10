@@ -773,6 +773,26 @@ and archives original file to .obsidian-archive/."
 
 ;;;; Development Tools
 
+(use-package compile
+  :ensure nil
+  :custom
+  (compilation-scroll-output t)
+  :config
+  (add-to-list 'display-buffer-alist
+               '("\\*compilation\\*"
+                 (display-buffer-reuse-window display-buffer-below-selected)
+                 (window-height . 0.3)
+                 (dedicated . t)))
+  (defun my-compilation-auto-close (buf status)
+    "Close compilation window after a delay if it succeeded."
+    (when (string-match-p "finished" status)
+      (run-at-time 1 nil
+                   (lambda (b)
+                     (when-let ((win (get-buffer-window b)))
+                       (delete-window win)))
+                   buf)))
+  (add-hook 'compilation-finish-functions #'my-compilation-auto-close))
+
 (use-package highlight-thing
   :ensure t
   :hook (prog-mode . highlight-thing-mode))
