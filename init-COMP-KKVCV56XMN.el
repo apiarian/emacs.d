@@ -15,3 +15,8 @@
 ;; Default prefix for new Git branches in magit
 (defvar my-magit-branch-prefix "aleksandr.pasechnik/"
   "Default prefix for new Git branches in magit.")
+
+;; Window title: show buffer name (or file path if visiting a file)
+(setq frame-title-format '((:eval (if (buffer-file-name)
+                                      (abbreviate-file-name (buffer-file-name))
+                                    "%b"))))
