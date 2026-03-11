@@ -124,6 +124,7 @@ Supported values: go, typescript, slime.")
 (setq version-control t)
 
 ;; Keep auto-save files out of project directories
+(make-directory "~/.emacs.d/auto-saves/" t)
 (setq auto-save-file-name-transforms
       '((".*" "~/.emacs.d/auto-saves/" t)))
 
