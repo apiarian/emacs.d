@@ -830,7 +830,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :custom
   (dumb-jump-force-searcher 'rg)
   :init
-  (add-hook 'xref-backend-functions #'dumb-jump-xref-activate 100))
+  (add-hook 'xref-backend-functions #'dumb-jump-xref-activate))
 
 (use-package go-ts-mode
   :if (memq 'go my-host-packages)
