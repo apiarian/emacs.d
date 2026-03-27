@@ -20,6 +20,17 @@
 	 helm-org highlight-thing kanagawa-themes monet org-modern
 	 org-modern-indent paredit slime solarized-theme
 	 typescript-mode undo-tree yaml-mode))
+ '(safe-local-variable-values
+   '((eval progn
+	   (dolist
+	       (fn
+		'(magit-insert-tags-header
+		  magit-insert-unpushed-to-pushremote
+		  magit-insert-unpulled-from-pushremote
+		  magit-insert-unpulled-from-upstream
+		  magit-insert-unpushed-to-upstream-or-recent))
+	     (setq-local magit-status-sections-hook
+			 (remove fn magit-status-sections-hook))))))
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces

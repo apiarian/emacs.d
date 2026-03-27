@@ -357,11 +357,11 @@ With prefix ARG, prompt for a buffer to kill instead."
   :demand t
   :config
   (defun my-god-mode-toggle-or-quit ()
-    "Toggle god-local-mode, or quit the minibuffer if active."
+    "Toggle god-mode globally, or quit the minibuffer if active."
     (interactive)
     (if (minibufferp)
         (abort-recursive-edit)
-      (god-local-mode)))
+      (god-mode-all)))
   (global-set-key (kbd "<escape>") #'my-god-mode-toggle-or-quit)
 
   (defun my-god-mode-update-cursor ()
@@ -370,10 +370,14 @@ With prefix ARG, prompt for a buffer to kill instead."
       (set-cursor-color (if god (face-foreground 'error) (face-foreground 'default)))))
   (add-hook 'post-command-hook #'my-god-mode-update-cursor)
 
-  (setcdr (assq 'god-local-mode minor-mode-alist)
-          '((" " (:propertize "GOD" face (:inherit error :inverse-video t :weight bold)))))
+  (setcdr (assq 'god-local-mode minor-mode-alist) '(""))
 
-  (define-key god-local-mode-map (kbd "<escape>") #'god-local-mode)
+  (unless (assq 'god-local-mode (default-value 'mode-line-format))
+    (setq-default mode-line-format
+                  (cons '(god-local-mode (:propertize " GOD " face (:inherit error :inverse-video t :weight bold)))
+                        (default-value 'mode-line-format))))
+
+  (define-key god-local-mode-map (kbd "<escape>") #'god-mode-all)
   (define-key god-local-mode-map (kbd ".") #'repeat)
   (define-key god-local-mode-map (kbd "[") #'backward-paragraph)
   (define-key god-local-mode-map (kbd "]") #'forward-paragraph)
@@ -785,8 +789,10 @@ and archives original file to .obsidian-archive/."
                  (window-height . 0.3)
                  (dedicated . t)))
   (defun my-compilation-auto-close (buf status)
-    "Close compilation window after a delay if it succeeded."
-    (when (string-match-p "finished" status)
+    "Close compilation window after a delay if it succeeded.
+Only applies to the *compilation* buffer, not grep or other derivatives."
+    (when (and (string-match-p "finished" status)
+               (equal (buffer-name buf) "*compilation*"))
       (run-at-time 1 nil
                    (lambda (b)
                      (when-let ((win (get-buffer-window b)))
