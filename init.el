@@ -844,6 +844,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package yaml-mode :ensure t :defer t)
 (use-package markdown-mode :ensure t :defer t)
 (use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
+(use-package web-mode
+  :ensure t
+  :mode ("\\.html\\'" . web-mode))
 
 ;;;; Lisp Development
 
