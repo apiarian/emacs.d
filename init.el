@@ -117,6 +117,7 @@ Supported values: go, typescript, slime.")
 
 ;; Files and backups
 (setq dired-isearch-filenames 'dwim)
+(setq isearch-wrap-pause 'no)
 (setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
 (setq delete-old-versions t)
 (setq kept-old-versions 10)
@@ -844,9 +845,12 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package yaml-mode :ensure t :defer t)
 (use-package markdown-mode :ensure t :defer t)
 (use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
+(use-package adaptive-wrap :ensure t :defer t)
 (use-package web-mode
   :ensure t
-  :mode ("\\.html\\'" . web-mode))
+  :mode ("\\.html\\'" . web-mode)
+  :hook ((web-mode . visual-line-mode)
+         (web-mode . adaptive-wrap-prefix-mode)))
 
 ;;;; Lisp Development
 
