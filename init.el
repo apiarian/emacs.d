@@ -735,7 +735,10 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
         (apply orig-fun prompt my-magit-branch-prefix args)
       (apply orig-fun prompt initial-input args)))
 
-  (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix))
+  (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix)
+
+  ;; Start in insert mode for commit messages
+  (add-hook 'git-commit-setup-hook #'evil-insert-state))
 
 (use-package forge
   :ensure t
