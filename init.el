@@ -262,7 +262,9 @@ Supported values: go, typescript, slime.")
   :hook (org-mode . evil-org-mode)
   :config
   (require 'evil-org-agenda)
-  (evil-org-agenda-set-keys))
+  (evil-org-agenda-set-keys)
+  (evil-define-key 'normal org-mode-map
+    (kbd "go") 'org-mark-ring-goto))
 
 ;;;; Custom Editing Commands
 
