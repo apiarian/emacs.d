@@ -42,7 +42,6 @@ Supported values: go, typescript, slime.")
 (if window-system
     (tool-bar-mode -1))
 (global-auto-revert-mode 1)
-(setq-default cursor-type 'bar)
 (setq register-preview-delay 0)
 (setq project-mode-line 1)
 
@@ -212,12 +211,58 @@ Supported values: go, typescript, slime.")
 (use-package undo-tree
   :ensure t
   :demand t
-  :bind (("C-z" . undo-tree-undo)
-         ("C-S-z" . undo-tree-redo))
   :custom
   (undo-tree-auto-save-history nil)
   :config
   (global-undo-tree-mode))
+
+;;;; Evil Mode
+
+(use-package evil
+  :ensure t
+  :demand t
+  :init
+  (setq evil-want-integration t)
+  (setq evil-want-keybinding nil)  ; let evil-collection handle non-editing buffers
+  (setq evil-undo-system 'undo-tree)
+  (setq evil-want-C-u-scroll t)
+  (setq evil-want-Y-yank-to-eol t)
+  (setq evil-want-C-i-jump nil)   ; preserve TAB in org-mode
+  :config
+  (evil-mode 1)
+  ;; Escape quits minibuffer (replaces god-mode escape behavior)
+  (define-key minibuffer-local-map (kbd "<escape>") #'abort-recursive-edit)
+  (define-key minibuffer-local-ns-map (kbd "<escape>") #'abort-recursive-edit)
+  (define-key minibuffer-local-completion-map (kbd "<escape>") #'abort-recursive-edit)
+  (define-key minibuffer-local-must-match-map (kbd "<escape>") #'abort-recursive-edit)
+  ;; C-z for undo (matches other apps), emacs-state on C-\
+  (define-key evil-normal-state-map (kbd "C-z") #'undo-tree-undo)
+  (define-key evil-insert-state-map (kbd "C-z") #'undo-tree-undo)
+  (define-key evil-normal-state-map (kbd "C-\\") #'evil-emacs-state)
+  ;; Avy as evil motion — enables d C-; (delete to avy target), etc.
+  (define-key evil-normal-state-map (kbd "C-;") #'avy-goto-char-timer)
+  (define-key evil-motion-state-map (kbd "C-;") #'avy-goto-char-timer))
+
+(use-package evil-collection
+  :ensure t
+  :after evil
+  :demand t
+  :config
+  (evil-collection-init))
+
+(use-package evil-surround
+  :ensure t
+  :after evil
+  :config
+  (global-evil-surround-mode 1))
+
+(use-package evil-org
+  :ensure t
+  :after (evil org)
+  :hook (org-mode . evil-org-mode)
+  :config
+  (require 'evil-org-agenda)
+  (evil-org-agenda-set-keys))
 
 ;;;; Custom Editing Commands
 
@@ -235,25 +280,10 @@ non-whitespace character.  Otherwise, `backward-kill-word'."
     (backward-kill-word 1)))
 (global-set-key (kbd "M-DEL") #'my-backward-kill-word)
 
-(defun my-open-line-below ()
-  "Open a new line below the current one and move to it (like vim o)."
-  (interactive)
-  (end-of-line)
-  (newline-and-indent))
-
-(defun my-open-line-above ()
-  "Open a new line above the current one and move to it (like vim O)."
-  (interactive)
-  (beginning-of-line)
-  (open-line 1)
-  (indent-according-to-mode))
-
 (global-set-key (kbd "M-o") #'other-window)
 (global-set-key (kbd "M-i") (lambda () (interactive) (other-window -1)))
 (global-set-key (kbd "M-O") #'tab-next)
 (global-set-key (kbd "M-I") #'tab-previous)
-(global-set-key (kbd "C-o") #'my-open-line-below)
-(global-set-key (kbd "C-S-o") #'my-open-line-above)
 
 (defun split-and-follow-vertically ()
   "Split window vertically and switch to new window."
@@ -272,65 +302,8 @@ non-whitespace character.  Otherwise, `backward-kill-word'."
 (global-set-key (kbd "C-x 3") 'split-and-follow-vertically)
 (global-set-key (kbd "C-x 2") 'split-and-follow-horizontally)
 
-;;;; Window Register Swap
-
-(defvar swap-window-register--last-into nil)
-(defvar swap-window-register--last-from nil)
-
-(defun swap-window-register ()
-  (interactive)
-  (when my-zoom-active (my-toggle-zoom))
-  (let* ((current-register
-	  (if swap-window-register--last-into
-	      swap-window-register--last-into
-	    (register-read-with-preview "Current window register")))
-	 (next-register (register-read-with-preview
-			 (format
-			  "Next window register (current is %c, last was %c)"
-			  current-register
-			  (or swap-window-register--last-from ??)))))
-    (when (eq current-register next-register)
-      (user-error "Cannot swap to the same register (%c)" current-register))
-    (window-configuration-to-register current-register)
-    (setq swap-window-register--last-into next-register)
-    (setq swap-window-register--last-from current-register)
-    (if (get-register next-register)
-	(jump-to-register next-register)
-      (progn
-	(delete-other-windows)
-	(switch-to-buffer (get-buffer-create "*scratch*"))
-	(window-configuration-to-register next-register)))))
-
-(defun swap-window-register-last ()
-  (interactive)
-  (when my-zoom-active (my-toggle-zoom))
-  (if (or
-       (null swap-window-register--last-from)
-       (null swap-window-register--last-into))
-      (swap-window-register)
-    (progn
-      (let* ((current-register swap-window-register--last-into)
-	     (last-register swap-window-register--last-from))
-	(setq swap-window-register--last-into last-register)
-	(setq swap-window-register--last-from current-register)
-	(window-configuration-to-register current-register)
-	(jump-to-register last-register)))))
-
-(defun delete-window-register ()
-  "Delete a window register and reset swap tracking state."
-  (interactive)
-  (let ((reg (register-read-with-preview "Delete register")))
-    (set-register reg nil)
-    (setq swap-window-register--last-into nil)
-    (setq swap-window-register--last-from nil)
-    (message "Deleted register %c and reset swap state" reg)))
-
-(global-set-key (kbd "C-c w s") 'swap-window-register)
-(global-set-key (kbd "C-c w x") 'swap-window-register-last)
-(global-set-key (kbd "C-c w d") 'delete-window-register)
-
 (defun kill-buffer-and-close-window (&optional arg)
-  "Kill the current buffer and close the window or switch register.
+  "Kill the current buffer and close the window.
 With prefix ARG, prompt for a buffer to kill instead."
   (interactive "P")
   (if arg
@@ -338,8 +311,7 @@ With prefix ARG, prompt for a buffer to kill instead."
     (kill-this-buffer)
     (if (> (count-windows) 1)
         (delete-window)
-      (switch-to-buffer (get-buffer-create "*scratch*"))
-      (swap-window-register))))
+      (switch-to-buffer (get-buffer-create "*scratch*")))))
 
 (global-set-key (kbd "C-x k") #'kill-buffer-and-close-window)
 
@@ -352,78 +324,6 @@ With prefix ARG, prompt for a buffer to kill instead."
 (use-package avy
   :ensure t
   :bind ("C-;" . avy-goto-char-timer))
-
-(use-package god-mode
-  :ensure t
-  :demand t
-  :config
-  (defun my-god-mode-toggle-or-quit ()
-    "Toggle god-mode globally, or quit the minibuffer if active."
-    (interactive)
-    (if (minibufferp)
-        (abort-recursive-edit)
-      (god-mode-all)))
-  (global-set-key (kbd "<escape>") #'my-god-mode-toggle-or-quit)
-
-  (defun my-god-mode-update-cursor ()
-    (let ((god (or god-local-mode buffer-read-only)))
-      (setq cursor-type (if god 'box 'bar))
-      (set-cursor-color (if god (face-foreground 'error) (face-foreground 'default)))))
-  (add-hook 'post-command-hook #'my-god-mode-update-cursor)
-
-  (setcdr (assq 'god-local-mode minor-mode-alist) '(""))
-
-  (unless (assq 'god-local-mode (default-value 'mode-line-format))
-    (setq-default mode-line-format
-                  (cons '(god-local-mode (:propertize " GOD " face (:inherit error :inverse-video t :weight bold)))
-                        (default-value 'mode-line-format))))
-
-  (define-key god-local-mode-map (kbd "<escape>") #'god-mode-all)
-  (define-key god-local-mode-map (kbd ".") #'repeat)
-  (define-key god-local-mode-map (kbd "[") #'backward-paragraph)
-  (define-key god-local-mode-map (kbd "]") #'forward-paragraph)
-
-  (require 'god-mode-isearch)
-  (define-key isearch-mode-map (kbd "<escape>") #'god-mode-isearch-activate)
-  (define-key god-mode-isearch-map (kbd "<escape>") #'god-mode-isearch-disable))
-
-;; God-mode window shortcuts — makes x 1/2/3/0 work in god-mode
-(global-set-key (kbd "C-x C-1") #'delete-other-windows)
-(global-set-key (kbd "C-x C-2") #'split-and-follow-horizontally)
-(global-set-key (kbd "C-x C-3") #'split-and-follow-vertically)
-(global-set-key (kbd "C-x C-0") #'delete-window)
-
-;; Vim-style scrolling — screen moves, cursor keeps its screen position
-(defun my-scroll-up-line ()
-  "Scroll one line forward, keeping cursor at same screen position."
-  (interactive)
-  (scroll-up 1)
-  (forward-line 1))
-
-(defun my-scroll-down-line ()
-  "Scroll one line backward, keeping cursor at same screen position."
-  (interactive)
-  (scroll-down 1)
-  (forward-line -1))
-
-(defun my-scroll-up-quarter ()
-  "Scroll forward by a quarter page, keeping cursor at same screen position."
-  (interactive)
-  (let ((amount (max 1 (/ (window-body-height) 4))))
-    (scroll-up amount)
-    (forward-line amount)))
-
-(defun my-scroll-down-quarter ()
-  "Scroll backward by a quarter page, keeping cursor at same screen position."
-  (interactive)
-  (let ((amount (max 1 (/ (window-body-height) 4))))
-    (scroll-down amount)
-    (forward-line (- amount))))
-
-(global-set-key (kbd "C-S-n") #'my-scroll-up-line)
-(global-set-key (kbd "C-S-p") #'my-scroll-down-line)
-(global-set-key (kbd "M-n") #'my-scroll-up-quarter)
-(global-set-key (kbd "M-p") #'my-scroll-down-quarter)
 
 ;; Find file at point — opens in other window to preserve current buffer
 (ffap-bindings)
@@ -858,7 +758,13 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 
 (use-package paredit
   :ensure t
-  :hook ((emacs-lisp-mode lisp-mode lisp-interaction-mode slime-repl-mode scheme-mode) . paredit-mode))
+  :hook ((emacs-lisp-mode lisp-mode lisp-interaction-mode slime-repl-mode scheme-mode) . paredit-mode)
+  :config
+  ;; Let paredit win over evil in insert state for structural editing
+  (with-eval-after-load 'evil
+    (evil-define-key 'insert paredit-mode-map
+      (kbd "C-k") #'paredit-kill
+      (kbd "C-d") #'paredit-forward-delete)))
 
 (use-package slime
   :if (memq 'slime my-host-packages)
