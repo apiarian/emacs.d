@@ -377,6 +377,18 @@ With prefix ARG, prompt for a buffer to kill instead."
   :ensure t
   :after helm)
 
+;;;; Spell Checking
+
+(use-package jinx
+  :ensure t
+  :hook ((text-mode . jinx-mode)
+         (prog-mode . jinx-mode)
+         (conf-mode . jinx-mode))
+  :bind (("M-$" . jinx-correct)
+         ("C-M-$" . jinx-languages))
+  :custom
+  (jinx-languages "en_US"))
+
 ;;;; Org Mode
 
 (use-package org
