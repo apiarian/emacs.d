@@ -489,6 +489,8 @@ With prefix ARG, prompt for a buffer to kill instead."
   (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 1)))
   (org-refile-use-outline-path 'file)
   (org-startup-folded 'fold)
+  (org-startup-with-inline-images t)
+  (org-image-actual-width '(200))
   :bind (("C-c l" . org-store-link)
          ("C-c L" . my-helm-insert-org-custom-id-link)
          ("C-c C-h" . helm-org-agenda-files-headings)
