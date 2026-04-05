@@ -239,6 +239,10 @@ Supported values: go, typescript, slime.")
   (define-key evil-normal-state-map (kbd "C-z") #'undo-tree-undo)
   (define-key evil-insert-state-map (kbd "C-z") #'undo-tree-undo)
   (define-key evil-normal-state-map (kbd "C-\\") #'evil-emacs-state)
+  ;; Restore Emacs C-e (end-of-line) in evil normal/visual/motion states
+  (define-key evil-normal-state-map (kbd "C-e") #'end-of-line)
+  (define-key evil-visual-state-map (kbd "C-e") #'end-of-line)
+  (define-key evil-motion-state-map (kbd "C-e") #'end-of-line)
   ;; Avy as evil motion — enables d C-; (delete to avy target), etc.
   (define-key evil-normal-state-map (kbd "C-;") #'avy-goto-char-timer)
   (define-key evil-motion-state-map (kbd "C-;") #'avy-goto-char-timer))
