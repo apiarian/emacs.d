@@ -17,9 +17,9 @@
  '(org-hide-emphasis-markers t)
  '(package-selected-packages
    '(avy catppuccin-theme dockerfile-mode dumb-jump forge god-mode
-	 helm-org highlight-thing kanagawa-themes monet org-modern
-	 org-modern-indent paredit slime solarized-theme
-	 typescript-mode undo-tree yaml-mode))
+	 helm-org highlight-thing kanagawa-themes markdown-mermaid
+	 monet org-modern org-modern-indent paredit slime
+	 solarized-theme typescript-mode undo-tree yaml-mode))
  '(safe-local-variable-values
    '((eval progn
 	   (dolist

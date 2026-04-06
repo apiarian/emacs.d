@@ -113,6 +113,11 @@ Supported values: go, typescript, slime.")
 (when (and (eq system-type 'darwin)
            (not (string-match-p "/opt/homebrew/bin" (getenv "PATH"))))
   (setenv "PATH" (concat (getenv "PATH") ":/opt/homebrew/bin")))
+(let ((volta-bin (expand-file-name "~/.volta/bin")))
+  (when (and (file-directory-p volta-bin)
+             (not (string-match-p "\\.volta/bin" (getenv "PATH"))))
+    (setenv "PATH" (concat (getenv "PATH") ":" volta-bin))
+    (add-to-list 'exec-path volta-bin t)))
 
 ;; Files and backups
 (setq dired-isearch-filenames 'dwim)
@@ -742,7 +747,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix)
 
   ;; Start in insert mode for commit messages
-  (add-hook 'git-commit-setup-hook #'evil-insert-state))
+  (add-hook 'git-commit-setup-hook #'evil-insert-state)
+  (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix)
+  (setq magit-status-show-untracked-files 'all))
 
 (use-package forge
   :ensure t
@@ -767,6 +774,8 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package dockerfile-mode :ensure t :defer t)
 (use-package yaml-mode :ensure t :defer t)
 (use-package markdown-mode :ensure t :defer t)
+;; requires: npm install -g @mermaid-js/mermaid-cli
+(use-package markdown-mermaid :ensure t :after markdown-mode)
 (use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
 (use-package adaptive-wrap :ensure t :defer t)
 (use-package web-mode
