@@ -244,6 +244,7 @@ Supported values: go, typescript, slime.")
   ;; C-z for undo (matches other apps), emacs-state on C-\
   (define-key evil-normal-state-map (kbd "C-z") #'undo-tree-undo)
   (define-key evil-insert-state-map (kbd "C-z") #'undo-tree-undo)
+  (define-key evil-insert-state-map (kbd "C-y") #'yank)
   (define-key evil-normal-state-map (kbd "C-\\") #'evil-emacs-state)
   ;; Restore Emacs C-e (end-of-line) in evil normal/visual/motion states
   (define-key evil-normal-state-map (kbd "C-e") #'end-of-line)
