@@ -387,6 +387,14 @@ With prefix ARG, prompt for a buffer to kill instead."
   :ensure t
   :after helm)
 
+(use-package org-ql
+  :ensure t
+  :defer t)
+
+(use-package helm-org-ql
+  :ensure t
+  :after (helm org-ql))
+
 ;;;; Spell Checking
 
 (use-package jinx
@@ -415,12 +423,16 @@ With prefix ARG, prompt for a buffer to kill instead."
   (org-startup-folded 'fold)
   (org-startup-with-inline-images t)
   (org-image-actual-width '(200))
-  :bind (("C-c l" . org-store-link)
-         ("C-c L" . my-helm-insert-org-custom-id-link)
+  (org-id-link-to-org-use-id 'create-if-interactive)
+  :bind (("C-c l" . my-helm-insert-org-id-link)
+         ("C-c L" . org-retrofit-heading-link-to-id)
          ("C-c C-h" . helm-org-agenda-files-headings)
          ("C-c s" . org-search-current-heading))
   :config
   (require 'org-mouse)
+  (require 'org-id)
+  (org-id-update-id-locations
+   (directory-files-recursively "~/notes" "\\.org$"))
 
   (defun org-create-missing-headings ()
     "Find all internal links in current org buffer and create missing headings.
@@ -501,83 +513,120 @@ When called on a heading:
 
         (message "Converted %d link(s) to tag ':%s:'" count tag-name))))
 
-  (defun org-add-custom-id-and-update-links ()
-    "Add CUSTOM_ID to current heading and optionally update links.
-
-Auto-generates ID from heading text (lowercase, dashes for spaces).
-If ID already exists, uses existing one.
-Only prompts to update links if [[*Heading]] links exist."
-    (interactive)
-    (save-excursion
-      (org-back-to-heading t)
-      (let* ((heading-text (org-get-heading t t t t))
-             (existing-id (org-entry-get nil "CUSTOM_ID"))
-             (auto-generated-id (replace-regexp-in-string
-                                 "[^a-z0-9-]" ""
-                                 (replace-regexp-in-string
-                                  " " "-"
-                                  (downcase heading-text))))
-             (custom-id (if existing-id
-                           existing-id
-                         (read-string "CUSTOM_ID: " auto-generated-id)))
-             (link-pattern (format "\\[\\[\\*%s\\]\\]" (regexp-quote heading-text)))
-             (count 0))
-
-        ;; Add CUSTOM_ID if not present
-        (unless existing-id
-          (org-set-property "CUSTOM_ID" custom-id)
-          (message "Added CUSTOM_ID: %s" custom-id))
-
-        ;; Check if any [[*Heading]] links exist
-        (goto-char (point-min))
-        (while (re-search-forward link-pattern nil t)
-          (setq count (1+ count)))
-
-        ;; Only ask to update if links found
-        (when (and (> count 0)
-                   (y-or-n-p (format "Found %d link(s). Update to use #%s? " count custom-id)))
-          (goto-char (point-min))
-          (while (re-search-forward link-pattern nil t)
-            (replace-match (format "[[#%s][%s]]" custom-id heading-text)))
-          (message "Updated %d link(s) to use #%s" count custom-id)))))
-
-  (defun my-helm-insert-org-custom-id-link ()
-    "Insert link to heading with CUSTOM_ID using helm.
-Searches all .org files in ~/notes/ directory."
+  (defun my-helm-insert-org-id-link ()
+    "Insert an id-based link to an org heading using helm.
+Searches all .org files in ~/notes/. Creates an org-id on the
+target heading if one does not exist."
     (interactive)
     (let ((headings '())
-          (notes-dir (expand-file-name "~/notes/"))
-          (current-file (buffer-file-name)))
-      ;; Find all .org files in notes directory
+          (notes-dir (expand-file-name "~/notes/")))
       (dolist (file (directory-files notes-dir t "\\.org$"))
         (with-current-buffer (find-file-noselect file)
           (save-excursion
             (goto-char (point-min))
             (while (re-search-forward org-outline-regexp-bol nil t)
               (let ((heading (org-get-heading t t t t))
-                    (id (org-entry-get nil "CUSTOM_ID"))
-                    (filename (file-name-nondirectory file)))
-                (when id
-                  (push (cons (format "[%s] %s  →  #%s" filename heading id)
-                             (list id heading file))
-                        headings)))))))
+                    (level (org-current-level))
+                    (filename (file-name-nondirectory file))
+                    (pos (point))
+                    (buf (current-buffer)))
+                (push (cons (format "[%s] %s%s"
+                                    filename
+                                    (make-string (* 2 (1- level)) ?\s)
+                                    heading)
+                           (list buf pos heading))
+                      headings))))))
       (if (not headings)
-          (message "No headings with CUSTOM_ID found in %s" notes-dir)
-        (helm :sources (helm-build-sync-source "Headings with CUSTOM_ID"
+          (message "No headings found in %s" notes-dir)
+        (helm :sources (helm-build-sync-source "Org Headings"
                          :candidates (nreverse headings)
-                         :action '(("Insert link" .
-                                   (lambda (choice)
-                                     (let ((id (nth 0 choice))
-                                           (heading (nth 1 choice))
-                                           (file (nth 2 choice)))
-                                       (if (string= file current-file)
-                                           ;; Same file: use #id
-                                           (insert (format "[[#%s][%s]]" id heading))
-                                         ;; Different file: use file:path::#id
-                                         (insert (format "[[file:%s::#%s][%s]]"
-                                                       (file-name-nondirectory file)
-                                                       id heading))))))))
-              :buffer "*helm org custom id*"))))
+                         :action (lambda (choice)
+                                   (let* ((buf (nth 0 choice))
+                                          (pos (nth 1 choice))
+                                          (heading (nth 2 choice))
+                                          (id (with-current-buffer buf
+                                                (save-excursion
+                                                  (goto-char pos)
+                                                  (org-back-to-heading t)
+                                                  (org-id-get-create)))))
+                                     (insert (org-link-make-string
+                                              (concat "id:" id) heading)))))
+              :buffer "*helm org headings*"))))
+
+  (defun org-retrofit-heading-link-to-id ()
+    "Convert the link at point to use an org-id UUID.
+Handles [[*Heading]], [[#custom-id]], [[file:path::*Heading]],
+and [[file:path::#custom-id]] links."
+    (interactive)
+    (let ((el (org-element-context)))
+      (unless (eq (org-element-type el) 'link)
+        (user-error "No link at point"))
+      (let* ((type (org-element-property :type el))
+             (path (org-element-property :path el))
+             (search (org-element-property :search-option el))
+             (begin (org-element-property :begin el))
+             target-heading target-id target-buf)
+        (cond
+         ;; [[*Heading]]
+         ((and (string= type "fuzzy") (string-prefix-p "*" path))
+          (setq target-buf (current-buffer)
+                search path))
+         ;; [[#custom-id]]
+         ((string= type "custom-id")
+          (setq target-buf (current-buffer)
+                search (concat "#" path)))
+         ;; [[file:path::*Heading]] or [[file:path::#custom-id]]
+         ((and (string= type "file") search
+               (or (string-prefix-p "*" search)
+                   (string-prefix-p "#" search)))
+          (setq target-buf
+                (find-file-noselect
+                 (expand-file-name path
+                   (file-name-directory (buffer-file-name))))))
+         (t
+          (user-error "Not a heading or custom-id link")))
+        (with-current-buffer target-buf
+          (save-excursion
+            (goto-char (point-min))
+            (if (string-prefix-p "*" search)
+                (unless (re-search-forward
+                         (format org-complex-heading-regexp-format
+                                 (regexp-quote (substring search 1)))
+                         nil t)
+                  (user-error "Heading '%s' not found" (substring search 1)))
+              (org-link-search search))
+            (org-back-to-heading t)
+            (setq target-heading (org-get-heading t t t t))
+            (setq target-id (org-id-get-create))))
+        (goto-char begin)
+        (if (looking-at org-link-bracket-re)
+            (replace-match (org-link-make-string
+                            (concat "id:" target-id) target-heading))
+          (user-error "Could not parse link at point"))
+        (message "Retrofitted -> [[id:%s][%s]]" target-id target-heading))))
+
+  (defun org-resync-link-description ()
+    "Update the description of the id-link at point to match its heading."
+    (interactive)
+    (let ((el (org-element-context)))
+      (unless (eq (org-element-type el) 'link)
+        (user-error "No link at point"))
+      (let* ((type (org-element-property :type el))
+             (path (org-element-property :path el))
+             (begin (org-element-property :begin el)))
+        (unless (string= type "id")
+          (user-error "Not an id: link"))
+        (let ((marker (org-id-find path 'marker)))
+          (unless marker
+            (user-error "Cannot find heading for ID %s" path))
+          (let ((heading (org-with-point-at marker
+                           (org-get-heading t t t t))))
+            (goto-char begin)
+            (if (looking-at org-link-bracket-re)
+                (replace-match (org-link-make-string
+                                (concat "id:" path) heading))
+              (user-error "Could not parse link at point"))
+            (message "Updated description -> %s" heading))))))
 
   (defun org-search-current-heading ()
     "Search for the current heading."
