@@ -431,8 +431,10 @@ With prefix ARG, prompt for a buffer to kill instead."
   :config
   (require 'org-mouse)
   (require 'org-id)
-  (org-id-update-id-locations
-   (directory-files-recursively "~/notes" "\\.org$"))
+  (run-with-idle-timer 2 nil
+    (lambda ()
+      (org-id-update-id-locations
+       (directory-files-recursively "~/notes" "\\.org$"))))
 
   (defun org-create-missing-headings ()
     "Find all internal links in current org buffer and create missing headings.
