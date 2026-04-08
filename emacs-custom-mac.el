@@ -13,13 +13,10 @@
      "75b371fce3c9e6b1482ba10c883e2fb813f2cc1c88be0b8a1099773eb78a7176"
      "2b0fcc7cc9be4c09ec5c75405260a85e41691abb1ee28d29fcd5521e4fca575b"
      default))
+ '(helm-minibuffer-history-key "M-p")
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages
-   '(avy catppuccin-theme dockerfile-mode dumb-jump forge god-mode
-	 helm-org highlight-thing kanagawa-themes markdown-mermaid
-	 monet org-modern org-modern-indent paredit slime
-	 solarized-theme typescript-mode undo-tree yaml-mode))
+ '(package-selected-packages nil)
  '(safe-local-variable-values
    '((eval progn
 	   (dolist
