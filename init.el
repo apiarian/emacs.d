@@ -848,6 +848,37 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :hook ((web-mode . visual-line-mode)
          (web-mode . adaptive-wrap-prefix-mode)))
 
+;;;; Terminal
+
+(use-package vterm
+  :ensure t
+  :custom
+  (vterm-max-scrollback 10000)
+  (vterm-buffer-name-string "vterm: %s")
+  :config
+  (setenv "CLAUDE_CODE_NO_FLICKER" "1")
+  (evil-set-initial-state 'vterm-mode 'emacs))
+
+(defun my-vterm-project ()
+  "Open vterm in the current project root."
+  (interactive)
+  (let ((default-directory (or (when-let ((proj (project-current)))
+                                 (project-root proj))
+                               default-directory)))
+    (vterm (format "vterm: %s" (file-name-nondirectory
+                                 (directory-file-name default-directory))))))
+
+(defun my-vterm-below ()
+  "Open vterm in a split below the current window."
+  (interactive)
+  (let ((buf (save-window-excursion (vterm) (current-buffer))))
+    (display-buffer buf
+                    '(display-buffer-below-selected
+                      (window-height . 0.3)))))
+
+(global-set-key (kbd "C-x t v") #'my-vterm-project)
+(global-set-key (kbd "C-x t b") #'my-vterm-below)
+
 ;;;; Lisp Development
 
 (use-package paredit
