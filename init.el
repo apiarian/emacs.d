@@ -252,7 +252,18 @@ Supported values: go, typescript, slime.")
   (define-key evil-motion-state-map (kbd "C-e") #'end-of-line)
   ;; Avy as evil motion — enables d C-; (delete to avy target), etc.
   (define-key evil-normal-state-map (kbd "C-;") #'avy-goto-char-timer)
-  (define-key evil-motion-state-map (kbd "C-;") #'avy-goto-char-timer))
+  (define-key evil-motion-state-map (kbd "C-;") #'avy-goto-char-timer)
+  ;; C-S-h/j/k/l to move between windows, C-S-M-h/j/k/l to swap windows
+  (dolist (state '(normal insert visual motion))
+    (evil-define-key state 'global
+      (kbd "C-S-h") #'windmove-left
+      (kbd "C-S-j") #'windmove-down
+      (kbd "C-S-k") #'windmove-up
+      (kbd "C-S-l") #'windmove-right
+      (kbd "C-S-M-h") #'windmove-swap-states-left
+      (kbd "C-S-M-j") #'windmove-swap-states-down
+      (kbd "C-S-M-k") #'windmove-swap-states-up
+      (kbd "C-S-M-l") #'windmove-swap-states-right)))
 
 (use-package evil-collection
   :ensure t
