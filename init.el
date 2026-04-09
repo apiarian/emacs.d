@@ -648,7 +648,29 @@ and [[file:path::#custom-id]] links."
     (org-back-to-heading t)
     (let ((heading-text (org-get-heading t t t t)))
       (goto-char (point-min))
-      (isearch-resume heading-text nil nil t nil t))))
+      (isearch-resume heading-text nil nil t nil t)))
+
+  (defun org-goto-today ()
+    "Jump to today's date heading in ~/notes/misc.org.
+If already visiting that file, just jump. Otherwise open it in a split."
+    (interactive)
+    (let* ((file (expand-file-name "~/notes/misc.org"))
+           (date-re (concat "^\\*+ "
+                            (regexp-quote (format-time-string "<%Y-%m-%d %a>")))))
+      (if (string= (buffer-file-name) file)
+          nil
+        (if (get-file-buffer file)
+            (pop-to-buffer (get-file-buffer file))
+          (find-file-other-window file)))
+      (widen)
+      (goto-char (point-min))
+      (if (re-search-forward date-re nil t)
+          (progn
+            (org-back-to-heading t)
+            (org-fold-show-entry)
+            (org-fold-show-children)
+            (recenter 3))
+        (message "No heading for today found")))))
 
 ;;;; Obsidian Import
 
