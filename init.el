@@ -890,7 +890,25 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (vterm-buffer-name-string "vterm: %s")
   :config
   (setenv "CLAUDE_CODE_NO_FLICKER" "1")
-  (evil-set-initial-state 'vterm-mode 'emacs))
+  (defun my-vterm-setup ()
+    "Configure vterm buffer for TUI rendering."
+    (setq-local cursor-in-non-selected-windows nil)
+    (setq-local blink-cursor-mode nil)
+    (setq-local global-hl-line-mode nil)
+    (when (featurep 'hl-line) (hl-line-mode -1))
+    (evil-local-mode -1))
+  (add-hook 'vterm-mode-hook #'my-vterm-setup)
+  (defun my-vterm-kill-window (_ _)
+    "Kill buffer and close window when vterm shell exits."
+    (let ((win (get-buffer-window)))
+      (kill-buffer)
+      (when win
+        (ignore-errors (delete-window win)))))
+  (add-hook 'vterm-exit-functions #'my-vterm-kill-window))
+
+(use-package vterm-anti-flicker-filter
+  :vc (:url "https://github.com/martinbaillie/vterm-anti-flicker-filter" :branch "main")
+  :after vterm)
 
 (defun my-vterm-project ()
   "Open vterm in the current project root."
