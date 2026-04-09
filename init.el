@@ -894,9 +894,10 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   "Open vterm in a split below the current window."
   (interactive)
   (let ((buf (save-window-excursion (vterm) (current-buffer))))
-    (display-buffer buf
-                    '(display-buffer-below-selected
-                      (window-height . 0.3)))))
+    (select-window
+     (display-buffer buf
+                     '(display-buffer-below-selected
+                       (window-height . 0.3))))))
 
 (global-set-key (kbd "C-x t v") #'my-vterm-project)
 (global-set-key (kbd "C-x t b") #'my-vterm-below)
