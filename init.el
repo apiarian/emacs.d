@@ -246,15 +246,16 @@ Supported values: go, typescript, slime.")
   (define-key evil-insert-state-map (kbd "C-z") #'undo-tree-undo)
   (define-key evil-insert-state-map (kbd "C-y") #'yank)
   (define-key evil-normal-state-map (kbd "C-\\") #'evil-emacs-state)
-  ;; Restore Emacs C-e (end-of-line) in evil normal/visual/motion states
+  ;; Restore Emacs C-e (end-of-line) in evil states
   (define-key evil-normal-state-map (kbd "C-e") #'end-of-line)
   (define-key evil-visual-state-map (kbd "C-e") #'end-of-line)
   (define-key evil-motion-state-map (kbd "C-e") #'end-of-line)
+  (define-key evil-insert-state-map (kbd "C-e") #'end-of-line)
   ;; Avy as evil motion — enables d C-; (delete to avy target), etc.
   (define-key evil-normal-state-map (kbd "C-;") #'avy-goto-char-timer)
   (define-key evil-motion-state-map (kbd "C-;") #'avy-goto-char-timer)
   ;; C-S-h/j/k/l to move between windows, C-S-M-h/j/k/l to swap windows
-  (dolist (state '(normal insert visual motion))
+  (dolist (state '(normal insert visual motion emacs))
     (evil-define-key state 'global
       (kbd "C-S-h") #'windmove-left
       (kbd "C-S-j") #'windmove-down
@@ -286,7 +287,17 @@ Supported values: go, typescript, slime.")
   (require 'evil-org-agenda)
   (evil-org-agenda-set-keys)
   (evil-define-key 'normal org-mode-map
-    (kbd "go") 'org-mark-ring-goto))
+    (kbd "go") 'org-mark-ring-goto)
+  ;; Reclaim C-S-h/j/k/l for windmove (evil-org additional theme steals them)
+  (evil-define-key '(normal visual insert) 'evil-org-mode
+    (kbd "C-S-h") #'windmove-left
+    (kbd "C-S-j") #'windmove-down
+    (kbd "C-S-k") #'windmove-up
+    (kbd "C-S-l") #'windmove-right
+    (kbd "C-S-M-h") #'windmove-swap-states-left
+    (kbd "C-S-M-j") #'windmove-swap-states-down
+    (kbd "C-S-M-k") #'windmove-swap-states-up
+    (kbd "C-S-M-l") #'windmove-swap-states-right))
 
 ;;;; Custom Editing Commands
 
