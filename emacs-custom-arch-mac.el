@@ -7,10 +7,7 @@
  '(helm-minibuffer-history-key "M-p")
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages
-   '(adaptive-wrap avy dockerfile-mode dumb-jump forge god-mode helm-org
-		   highlight-thing jinx paredit slime solarized-theme
-		   typescript-mode undo-tree web-mode yaml-mode))
+ '(package-selected-packages nil)
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
 (custom-set-faces
