@@ -892,6 +892,7 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   (setenv "CLAUDE_CODE_NO_FLICKER" "1")
   (defun my-vterm-setup ()
     "Configure vterm buffer for TUI rendering."
+    (setq-local truncate-lines t)
     (setq-local cursor-in-non-selected-windows nil)
     (setq-local blink-cursor-mode nil)
     (setq-local global-hl-line-mode nil)
