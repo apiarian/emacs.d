@@ -58,6 +58,43 @@ Called externally by darkman via emacsclient."
 ;; Host-specific optional packages (used by :if in init.el)
 (setq my-host-packages '(slime))
 
+;; mu4e (email)
+(use-package mu4e
+  :load-path "/usr/share/emacs/site-lisp/mu4e"
+  :commands (mu4e)
+  :config
+  ;; Sync
+  (setq mu4e-get-mail-command "mbsync -a"
+        mu4e-update-interval 300)  ; auto-sync every 5 minutes
+
+  ;; Fastmail folders
+  (setq mu4e-maildir "~/Mail/fastmail"
+        mu4e-sent-folder "/Sent"
+        mu4e-drafts-folder "/Drafts"
+        mu4e-trash-folder "/Trash"
+        mu4e-refile-folder "/Archive")
+
+  ;; Fastmail stores sent messages server-side, don't duplicate
+  (setq mu4e-sent-messages-behavior 'delete)
+
+  ;; Compose/identity
+  (setq mu4e-compose-reply-to-address "al@megamicron.net"
+        user-mail-address "al@megamicron.net"
+        user-full-name "Aleksandr Pasechnik")
+
+  ;; Send via msmtp
+  (setq sendmail-program "msmtp"
+        send-mail-function #'smtpmail-send-it
+        message-sendmail-f-is-evil t
+        message-sendmail-extra-arguments '("--read-envelope-from")
+        message-send-mail-function #'message-send-mail-with-sendmail)
+
+  ;; Show full addresses, not just names
+  (setq mu4e-view-show-addresses t)
+
+  ;; Don't keep message buffers around
+  (setq message-kill-buffer-on-exit t))
+
 ;; Fix underline position (draw below descenders, not at baseline)
 (setq x-underline-at-descent-line t)
 
