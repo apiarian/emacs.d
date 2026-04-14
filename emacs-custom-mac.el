@@ -17,10 +17,7 @@
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
  '(package-selected-packages nil)
- '(package-vc-selected-packages
-   '((vterm-anti-flicker-filter :url
-				"https://github.com/martinbaillie/vterm-anti-flicker-filter"
-				:branch "main")))
+ '(package-vc-selected-packages 'nil)
  '(safe-local-variable-values
    '((eval progn
 	   (dolist

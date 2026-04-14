@@ -881,57 +881,6 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :hook ((web-mode . visual-line-mode)
          (web-mode . adaptive-wrap-prefix-mode)))
 
-;;;; Terminal
-
-(use-package vterm
-  :ensure t
-  :custom
-  (vterm-max-scrollback 10000)
-  (vterm-buffer-name-string "vterm: %s")
-  :config
-  (setenv "CLAUDE_CODE_NO_FLICKER" "1")
-  (defun my-vterm-setup ()
-    "Configure vterm buffer for TUI rendering."
-    (setq-local truncate-lines t)
-    (setq-local cursor-in-non-selected-windows nil)
-    (setq-local blink-cursor-mode nil)
-    (setq-local global-hl-line-mode nil)
-    (when (featurep 'hl-line) (hl-line-mode -1))
-    (evil-local-mode -1))
-  (add-hook 'vterm-mode-hook #'my-vterm-setup)
-  (defun my-vterm-kill-window (_ _)
-    "Kill buffer and close window when vterm shell exits."
-    (let ((win (get-buffer-window)))
-      (kill-buffer)
-      (when win
-        (ignore-errors (delete-window win)))))
-  (add-hook 'vterm-exit-functions #'my-vterm-kill-window))
-
-(use-package vterm-anti-flicker-filter
-  :vc (:url "https://github.com/martinbaillie/vterm-anti-flicker-filter" :branch "main")
-  :after vterm)
-
-(defun my-vterm-project ()
-  "Open vterm in the current project root."
-  (interactive)
-  (let ((default-directory (or (when-let ((proj (project-current)))
-                                 (project-root proj))
-                               default-directory)))
-    (vterm (format "vterm: %s" (file-name-nondirectory
-                                 (directory-file-name default-directory))))))
-
-(defun my-vterm-below ()
-  "Open vterm in a split below the current window."
-  (interactive)
-  (let ((buf (save-window-excursion (vterm) (current-buffer))))
-    (select-window
-     (display-buffer buf
-                     '(display-buffer-below-selected
-                       (window-height . 0.3))))))
-
-(global-set-key (kbd "C-x t v") #'my-vterm-project)
-(global-set-key (kbd "C-x t b") #'my-vterm-below)
-
 ;;;; Lisp Development
 
 (use-package paredit
