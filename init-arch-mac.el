@@ -105,7 +105,21 @@ Called externally by darkman via emacsclient."
   ;; Prefer plain text over HTML when both are available
   (with-eval-after-load 'mm-decode
     (add-to-list 'mm-discouraged-alternatives "text/html")
-    (add-to-list 'mm-discouraged-alternatives "text/richtext")))
+    (add-to-list 'mm-discouraged-alternatives "text/richtext"))
+
+  ;; Ensure temp files for HTML MIME parts get .html extension
+  ;; so browsers render them properly
+  (defun my-mu4e-mime-temp-file-add-html-ext (orig-fun handle)
+    "Add .html extension when the MIME part is text/html."
+    (let ((file (funcall orig-fun handle)))
+      (if (and (equal (car (mm-handle-type handle)) "text/html")
+               (not (string-suffix-p ".html" file)))
+          (let ((new-file (concat file ".html")))
+            (rename-file file new-file)
+            new-file)
+        file)))
+  (advice-add 'mu4e--view-mime-part-to-temp-file
+              :around #'my-mu4e-mime-temp-file-add-html-ext))
 
 ;; Fix underline position (draw below descenders, not at baseline)
 (setq x-underline-at-descent-line t)

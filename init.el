@@ -441,8 +441,9 @@ With prefix ARG, prompt for a buffer to kill instead."
   (org-auto-align-tags nil)
   (org-tags-column 0)
   (org-agenda-files (list "~/notes/"))
-  (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 1)))
+  (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 3)))
   (org-refile-use-outline-path 'file)
+  (org-outline-path-complete-in-steps nil)
   (org-startup-folded 'fold)
   (org-startup-with-inline-images t)
   (org-image-actual-width '(200))
@@ -561,22 +562,37 @@ target heading if one does not exist."
                                     heading)
                            (list buf pos heading))
                       headings))))))
-      (if (not headings)
-          (message "No headings found in %s" notes-dir)
-        (helm :sources (helm-build-sync-source "Org Headings"
-                         :candidates (nreverse headings)
-                         :action (lambda (choice)
-                                   (let* ((buf (nth 0 choice))
-                                          (pos (nth 1 choice))
-                                          (heading (nth 2 choice))
-                                          (id (with-current-buffer buf
-                                                (save-excursion
-                                                  (goto-char pos)
-                                                  (org-back-to-heading t)
-                                                  (org-id-get-create)))))
-                                     (insert (org-link-make-string
-                                              (concat "id:" id) heading)))))
-              :buffer "*helm org headings*"))))
+      (helm :sources
+            (list
+             (helm-build-sync-source "Org Headings"
+               :candidates (nreverse headings)
+               :action (lambda (choice)
+                         (let* ((buf (nth 0 choice))
+                                (pos (nth 1 choice))
+                                (heading (nth 2 choice))
+                                (id (with-current-buffer buf
+                                      (save-excursion
+                                        (goto-char pos)
+                                        (org-back-to-heading t)
+                                        (org-id-get-create)))))
+                           (insert (org-link-make-string
+                                    (concat "id:" id) heading)))))
+             (helm-build-dummy-source "Create new heading"
+               :action (lambda (candidate)
+                         (let* ((file (expand-file-name "misc.org" notes-dir))
+                                (buf (find-file-noselect file))
+                                id)
+                           (with-current-buffer buf
+                             (save-excursion
+                               (goto-char (point-max))
+                               (unless (bolp) (insert "\n"))
+                               (insert "* " candidate "\n")
+                               (forward-line -1)
+                               (setq id (org-id-get-create))
+                               (save-buffer)))
+                           (insert (org-link-make-string
+                                    (concat "id:" id) candidate))))))
+            :buffer "*helm org headings*")))
 
   (defun org-retrofit-heading-link-to-id ()
     "Convert the link at point to use an org-id UUID.
