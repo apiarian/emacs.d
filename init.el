@@ -428,7 +428,22 @@ With prefix ARG, prompt for a buffer to kill instead."
   :bind (("M-$" . jinx-correct)
          ("C-M-$" . jinx-languages))
   :custom
-  (jinx-languages "en_US"))
+  (jinx-languages "en_US")
+  :config
+  (defun my/jinx-web-mode-setup ()
+    "Let jinx check all text in web-mode, not just comment/string faces."
+    (when (derived-mode-p 'web-mode)
+      (setq-local jinx--include-faces nil)))
+  (add-hook 'jinx-mode-hook #'my/jinx-web-mode-setup)
+  (setf (alist-get 'web-mode jinx-exclude-faces)
+        '(web-mode-html-tag-face
+          web-mode-html-tag-custom-face
+          web-mode-html-tag-bracket-face
+          web-mode-html-attr-name-face
+          web-mode-html-attr-value-face
+          web-mode-html-entity-face
+          web-mode-block-control-face
+          web-mode-block-delimiter-face)))
 
 ;;;; Org Mode
 
