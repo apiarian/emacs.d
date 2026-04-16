@@ -92,8 +92,20 @@ Called externally by darkman via emacsclient."
   ;; Show full addresses, not just names
   (setq mu4e-view-show-addresses t)
 
+  ;; Rename files when moving — required for mbsync compatibility
+  (setq mu4e-change-filenames-when-moving t)
+
+  ;; Move to Trash folder without adding Trashed flag,
+  ;; otherwise Expunge Both in mbsync permanently deletes them
+  (setq mu4e-trash-without-flag t)
+
   ;; Don't keep message buffers around
-  (setq message-kill-buffer-on-exit t))
+  (setq message-kill-buffer-on-exit t)
+
+  ;; Prefer plain text over HTML when both are available
+  (with-eval-after-load 'mm-decode
+    (add-to-list 'mm-discouraged-alternatives "text/html")
+    (add-to-list 'mm-discouraged-alternatives "text/richtext")))
 
 ;; Fix underline position (draw below descenders, not at baseline)
 (setq x-underline-at-descent-line t)
