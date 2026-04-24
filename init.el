@@ -456,7 +456,7 @@ With prefix ARG, prompt for a buffer to kill instead."
   (org-auto-align-tags nil)
   (org-tags-column 0)
   (org-agenda-files (list "~/notes/"))
-  (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 3)))
+  (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 9)))
   (org-refile-use-outline-path 'file)
   (org-outline-path-complete-in-steps nil)
   (org-startup-folded 'fold)
@@ -474,6 +474,12 @@ With prefix ARG, prompt for a buffer to kill instead."
     (lambda ()
       (org-id-update-id-locations
        (directory-files-recursively "~/notes" "\\.org$"))))
+
+  (defun my-org-refile-follow (&optional arg &rest _)
+    "Jump to destination after a refile that actually moves/copies a heading."
+    (when (memq arg '(nil 2 3))
+      (org-refile-goto-last-stored)))
+  (advice-add 'org-refile :after #'my-org-refile-follow)
 
   (defun org-create-missing-headings ()
     "Find all internal links in current org buffer and create missing headings.
