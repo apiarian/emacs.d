@@ -231,6 +231,7 @@ Supported values: go, typescript, slime.")
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)  ; let evil-collection handle non-editing buffers
   (setq evil-undo-system 'undo-tree)
+  (setq evil-want-fine-undo t)
   (setq evil-want-C-u-scroll t)
   (setq evil-want-Y-yank-to-eol t)
   (setq evil-want-C-i-jump nil)   ; preserve TAB in org-mode
