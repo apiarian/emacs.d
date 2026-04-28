@@ -91,10 +91,46 @@ Supported values: go, typescript, slime.")
                          local-map ,map))))
   (put 'my-mode-line-close-button 'risky-local-variable t)
 
-  (unless (memq 'my-mode-line-close-button (default-value 'mode-line-format))
+  ;; Org back button (buffer-local; set in org buffers by my-org-link-nav-mode)
+  (defun my-org-mark-ring-back (event)
+    "Go back in org mark ring via mode-line click."
+    (interactive "e")
+    (with-selected-window (posn-window (event-start event))
+      (org-mark-ring-goto)))
+
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mode-line mouse-1] #'my-org-mark-ring-back)
+    (setq my-org-back-button-active
+          `(" " (:propertize "←"
+                             face (:weight bold)
+                             mouse-face mode-line-highlight
+                             help-echo "mouse-1: Back (org-mark-ring)"
+                             local-map ,map))))
+
+  (defvar-local my-org-back-button nil)
+  (put 'my-org-back-button 'risky-local-variable t)
+
+  ;; Right-aligned section — both buttons pinned to the right edge regardless of mode clutter
+  (defvar my-mode-line-right-buttons
+    `((:eval
+       (let* ((r (format-mode-line
+                  '(my-org-back-button my-mode-line-close-button)))
+              (w (string-width r)))
+         (propertize " " 'display
+                     `((space :align-to (- right ,w))))))
+      my-org-back-button
+      my-mode-line-close-button))
+  (put 'my-mode-line-right-buttons 'risky-local-variable t)
+
+  (unless (memq 'my-mode-line-right-buttons (default-value 'mode-line-format))
     (setq-default mode-line-format
                   (append (default-value 'mode-line-format)
-                          '(my-mode-line-close-button)))))
+                          '(my-mode-line-right-buttons)))))
+
+(use-package minions
+  :ensure t
+  :config
+  (minions-mode 1))
 
 ;; New frames open *scratch* instead of cloning current buffer
 (defun my-frame-scratch (frame)
@@ -658,11 +694,13 @@ fallback without naming any specific command."
                   (progn
                     (add-hook 'eldoc-documentation-functions
                               #'my-org-link-nav-eldoc nil t)
-                    (my-org-link-nav-install-emulation))
+                    (my-org-link-nav-install-emulation)
+                    (setq my-org-back-button my-org-back-button-active))
                 (progn
                   (remove-hook 'eldoc-documentation-functions
                                #'my-org-link-nav-eldoc t)
-                  (kill-local-variable 'emulation-mode-map-alists)))))
+                  (kill-local-variable 'emulation-mode-map-alists)
+                  (setq my-org-back-button nil)))))
 
   ;; evil-local-mode (per-buffer) also prepends evil-mode-map-alist via setq,
   ;; running via after-change-major-mode-hook AFTER org-mode-hook finishes.
