@@ -473,42 +473,92 @@ With prefix ARG, prompt for a buffer to kill instead."
   (require 'org-id)
 
   ;;;; Org link multi-destination navigation
-
-  (defvar my-org-link-actions
-    '((current . ((display-buffer-same-window)
-                  (inhibit-same-window . nil)))
-      (other   . ((display-buffer-pop-up-window)
-                  (inhibit-same-window . t)))
-      (right   . ((display-buffer-in-direction)
-                  (direction . right)
-                  (window-width . 0.5)
-                  (inhibit-same-window . t)))
-      (down    . ((display-buffer-in-direction)
-                  (direction . below)
-                  (window-height . 0.5)
-                  (inhibit-same-window . t)))
-      (tab     . ((display-buffer-in-tab)
-                  (tab-name . nil)))
-      (frame   . ((display-buffer-pop-up-frame)
-                  (inhibit-same-window . t))))
-    "Mapping from action symbol to display-buffer action spec.")
+  ;;
+  ;; Modifier+RET and modifier+click open org links in different destinations:
+  ;;   RET / mouse-1       current window    (mouse-1 uses org's built-in handler)
+  ;;   S-RET / S-mouse-1   other window
+  ;;   C-RET / C-mouse-1   split right
+  ;;   C-M-RET / C-M-click split below
+  ;;   M-RET / M-mouse-1   new tab
+  ;;   s-RET / s-mouse-1   new frame
+  ;;
+  ;; Key implementation notes:
+  ;;
+  ;; - Keyboard bindings use `<return>' not `RET': GUI Emacs generates [C-return]
+  ;;   (function key symbol); (kbd "C-RET") produces the char-13 variant which
+  ;;   doesn't match modifier+return events.
+  ;;
+  ;; - Keyboard commands use my-org-link-kbd-opener (direct binding, no
+  ;;   menu-item :filter): the command itself checks for a link and calls the
+  ;;   fallback dynamically via (let ((my-org-link-nav-mode nil)) (key-binding ...)).
+  ;;   menu-item :filter was unreliable for keyboard events through emulation maps.
+  ;;
+  ;; - Link detection (my-org-link-at-pos-p) tries three methods: keymap text
+  ;;   property (org sets org-mouse-map on link text), org-in-regexp, and
+  ;;   org-element-context. my-org-link-at-point-p also checks (1+ point) because
+  ;;   evil's block cursor can land on an invisible bracket just before link text.
+  ;;
+  ;; - Priority over evil: we use emulation-mode-map-alists (above all evil maps).
+  ;;   evil-local-mode (per-buffer, runs via after-change-major-mode-hook AFTER
+  ;;   org-mode-hook) also prepends evil-mode-map-alist. Fix: make the variable
+  ;;   buffer-local in our mode hook AND re-prepend in evil-local-mode-hook.
+  ;;   Verify ordering with: (seq-position emulation-mode-map-alists
+  ;;                           'my-org-link-nav-emulation-alist) → should be 0.
 
   (defun my-org-open-link-with-action (action)
     "Open the org link at point in the window described by ACTION."
-    (let ((display-buffer-overriding-action
-           (alist-get action my-org-link-actions))
-          (switch-to-buffer-obey-display-actions t))
-      (org-open-at-point)))
+    (if (eq action 'current)
+        (org-open-at-point)
+      ;; Let org resolve the link (handles all link types uniformly), capture
+      ;; the resulting buffer+position, restore windows, then place the target
+      ;; in the desired window using direct window functions. display-buffer is
+      ;; avoided because it deliberately does not change focus and its tab/frame
+      ;; routing interacts poorly with tab-bar's window configurations.
+      (let ((orig-buf (current-buffer))
+            (orig-pos (point))
+            target-buf target-pos)
+        (save-window-excursion
+          (save-excursion
+            (org-open-at-point)
+            (setq target-buf (current-buffer)
+                  target-pos (point))))
+        ;; If buffer/position didn't change the link opened something external
+        ;; (browser, shell command, etc.) — side-effect already fired; done.
+        (unless (and (eq target-buf orig-buf) (= target-pos orig-pos))
+          (pcase action
+            ('other (switch-to-buffer-other-window target-buf))
+            ('right (select-window (split-window-right))
+                    (switch-to-buffer target-buf))
+            ('down  (select-window (split-window-below))
+                    (switch-to-buffer target-buf))
+            ('tab   (tab-bar-new-tab)
+                    (switch-to-buffer target-buf))
+            ('frame (switch-to-buffer-other-frame target-buf)))
+          (goto-char target-pos)
+          (when (derived-mode-p 'org-mode)
+            (org-fold-show-context))))))
 
   (defun my-org-link-at-pos-p (pos)
-    "Return non-nil if POS is on an org link."
-    (when pos
-      (save-excursion
-        (goto-char pos)
-        (eq (org-element-type (org-element-context)) 'link))))
+    "Return non-nil if POS is on an org link.
+Tries three approaches in order: keymap text property (fast), bracket-link
+regex via org-in-regexp, and org-element-context parsing (slowest).  The
+redundancy handles evil normal mode where the block cursor can land on folded
+bracket characters that may or may not carry each property."
+    (when (and pos (>= pos (point-min)) (<= pos (point-max)))
+      (or (eq (get-char-property pos 'keymap) org-mouse-map)
+          (save-excursion
+            (goto-char pos)
+            (org-in-regexp org-link-bracket-re))
+          (save-excursion
+            (goto-char pos)
+            (eq (org-element-type (org-element-context)) 'link)))))
 
   (defun my-org-link-at-point-p ()
-    (my-org-link-at-pos-p (point)))
+    ;; Check (point) and (1+ point): in evil normal mode the block cursor
+    ;; can sit on an invisible bracket just before the visible link text,
+    ;; so one of the two positions is reliably inside the link span.
+    (or (my-org-link-at-pos-p (point))
+        (my-org-link-at-pos-p (1+ (point)))))
 
   (defun my-org-link-at-click-p ()
     "Check link presence at the position of the current mouse event."
@@ -517,15 +567,30 @@ With prefix ARG, prompt for a buffer to kill instead."
            (my-org-link-at-pos-p (posn-point (event-start event))))))
 
   (defun my-org-link-opener (action)
-    "Return an interactive command that opens the link at point with ACTION."
+    "Return an interactive mouse command that opens a clicked link with ACTION."
     (lambda (&optional event)
       (interactive (list last-input-event))
       (when (and (consp event) (eventp event))
-        (mouse-set-point event))
+        (mouse-set-point event)
+        ;; Shift+click activates the region as a side effect; suppress it.
+        (deactivate-mark))
       (my-org-open-link-with-action action)))
 
+  (defun my-org-link-kbd-opener (action)
+    "Return an interactive keyboard command for ACTION.
+When point is on an org link, follow it with ACTION.  Otherwise look up
+what the key would do without our mode active and call that — dynamic
+fallback without naming any specific command."
+    (lambda ()
+      (interactive)
+      (if (ignore-errors (my-org-link-at-point-p))
+          (my-org-open-link-with-action action)
+        (let ((my-org-link-nav-mode nil))
+          (call-interactively
+           (or (key-binding (this-command-keys-vector) t) #'ignore))))))
+
   (defvar my-org-link-nav-hint
-    "RET here · S-RET other · C-RET right · C-M-RET down · M-RET tab · s-RET frame"
+    "RET here · S-RET other · C-RET right · C-M-RET down · M-RET tab · s-RET frame (GUI keys)"
     "Echo-area hint shown when point is on an org link.")
 
   (defun my-org-link-nav-eldoc (callback &rest _)
@@ -533,47 +598,80 @@ With prefix ARG, prompt for a buffer to kill instead."
     (when (my-org-link-at-point-p)
       (funcall callback my-org-link-nav-hint)))
 
-  (defvar my-org-link-nav-mode-map
-    (let ((map (make-sparse-keymap)))
-      (dolist (entry '((kbd "RET"           current keyboard)
-                       (kbd "S-RET"         other   keyboard)
-                       (kbd "C-RET"         right   keyboard)
-                       (kbd "C-M-RET"       down    keyboard)
-                       (kbd "M-RET"         tab     keyboard)
-                       (kbd "s-RET"         frame   keyboard)
-                       (vec [mouse-1]       current mouse)
-                       (vec [S-mouse-1]     other   mouse)
-                       (vec [C-mouse-1]     right   mouse)
-                       (vec [C-M-mouse-1]   down    mouse)
-                       (vec [M-mouse-1]     tab     mouse)
-                       (vec [s-mouse-1]     frame   mouse)))
-        (let* ((kind      (nth 0 entry))
-               (key       (nth 1 entry))
-               (action    (nth 2 entry))
-               (mode      (nth 3 entry))
-               (predicate (if (eq mode 'mouse)
-                              #'my-org-link-at-click-p
-                            #'my-org-link-at-point-p))
-               (cmd (my-org-link-opener action))
-               (k (if (eq kind 'kbd) (kbd key) key)))
-          (define-key map k
-            `(menu-item ,(format "org-link-%s" action)
-                        ,cmd
-                        :filter ,(lambda (c) (when (funcall predicate) c))))))
-      map)
+  (defvar my-org-link-nav-mode-map (make-sparse-keymap)
     "Keymap for `my-org-link-nav-mode'.")
+
+  ;; Populated with explicit define-key calls (not inside defvar) so this
+  ;; section is idempotent on re-evaluation and updates the live map object.
+  ;; [mouse-1] is intentionally absent: org already follows links with plain
+  ;; click via mouse-1-click-follows-link; intercepting it here would kill
+  ;; active regions and duplicate behavior.
+  (dolist (entry '(([S-mouse-1]     other)
+                   ([C-mouse-1]     right)
+                   ([C-M-mouse-1]   down)
+                   ([M-mouse-1]     tab)
+                   ([s-mouse-1]     frame)))
+    (let* ((k      (nth 0 entry))
+           (action (nth 1 entry))
+           (cmd    (my-org-link-opener action)))
+      (define-key my-org-link-nav-mode-map k
+        `(menu-item ,(format "org-link-%s" action)
+                    ,cmd
+                    :filter ,(lambda (c) (when (my-org-link-at-click-p) c))))))
+
+  (dolist (entry '(("<return>"     current)
+                   ("S-<return>"   other)
+                   ("C-<return>"   right)
+                   ("C-M-<return>" down)
+                   ("M-<return>"   tab)
+                   ("s-<return>"   frame)))
+    (let* ((k      (kbd (nth 0 entry)))
+           (action (nth 1 entry))
+           (cmd    (my-org-link-kbd-opener action)))
+      (define-key my-org-link-nav-mode-map k cmd)))
+
+  ;; Consume modifier down-events so the up-event fires cleanly.  Using ignore
+  ;; (not mouse-set-point) avoids the region-activation side effect of
+  ;; Shift+click; our opener calls mouse-set-point on the up-event itself.
+  (dolist (down '(M-down-mouse-1 S-down-mouse-1 C-M-down-mouse-1 s-down-mouse-1))
+    (define-key my-org-link-nav-mode-map (vector down) #'ignore))
+
+  (defvar my-org-link-nav-emulation-alist
+    (list (cons 'my-org-link-nav-mode my-org-link-nav-mode-map))
+    "Emulation alist giving org link nav priority over all other keymaps.")
 
   (define-minor-mode my-org-link-nav-mode
     "Modifier-aware navigation for org links (keyboard and mouse)."
     :keymap my-org-link-nav-mode-map)
 
+  (defun my-org-link-nav-install-emulation ()
+    "Put our emulation alist before evil's in the current buffer."
+    (make-local-variable 'emulation-mode-map-alists)
+    (setq emulation-mode-map-alists
+          (cons 'my-org-link-nav-emulation-alist
+                (delq 'my-org-link-nav-emulation-alist
+                      emulation-mode-map-alists))))
+
   (add-hook 'my-org-link-nav-mode-hook
             (lambda ()
               (if my-org-link-nav-mode
-                  (add-hook 'eldoc-documentation-functions
-                            #'my-org-link-nav-eldoc nil t)
-                (remove-hook 'eldoc-documentation-functions
-                             #'my-org-link-nav-eldoc t))))
+                  (progn
+                    (add-hook 'eldoc-documentation-functions
+                              #'my-org-link-nav-eldoc nil t)
+                    (my-org-link-nav-install-emulation))
+                (progn
+                  (remove-hook 'eldoc-documentation-functions
+                               #'my-org-link-nav-eldoc t)
+                  (kill-local-variable 'emulation-mode-map-alists)))))
+
+  ;; evil-local-mode (per-buffer) also prepends evil-mode-map-alist via setq,
+  ;; running via after-change-major-mode-hook AFTER org-mode-hook finishes.
+  ;; Re-prepend ours in evil-local-mode-hook so we always end up on top.
+  (with-eval-after-load 'evil
+    (add-hook 'evil-local-mode-hook
+              (lambda ()
+                (when (bound-and-true-p my-org-link-nav-mode)
+                  (my-org-link-nav-install-emulation)))))
 
   (defun my-org-link-nav-mouse-buf-pos ()
     "Return buffer position under the mouse pointer, or nil."
@@ -597,24 +695,6 @@ With prefix ARG, prompt for a buffer to kill instead."
 
   (advice-add 'tooltip-show-help :around #'my-org-link-nav-augment-tooltip)
 
-  ;; RET in evil normal state is bound to evil-ret (in motion state), which lives
-  ;; in evil's emulation keymaps above our regular minor-mode keymap. We use
-  ;; evil-define-minor-mode-key to place the binding at the evil emulation level
-  ;; (minor-mode keymaps slot), above evil-ret and evil-org-return. The :filter
-  ;; returns nil when not on a link so evil-ret still runs normally.
-  (defun my-org-link-nav-filter (cmd)
-    "Return CMD when on an org link, nil otherwise — for menu-item :filter."
-    (when (my-org-link-at-point-p) cmd))
-
-  (defun my-org-link-open-current ()
-    "Open the org link at point in the current window."
-    (interactive)
-    (my-org-open-link-with-action 'current))
-
-  (with-eval-after-load 'evil
-    (evil-define-minor-mode-key 'normal 'my-org-link-nav-mode (kbd "RET")
-      '(menu-item "org-link-current" my-org-link-open-current
-                  :filter my-org-link-nav-filter)))
 
   (add-hook 'org-mode-hook #'my-org-link-nav-mode)
 
