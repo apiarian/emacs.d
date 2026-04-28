@@ -471,6 +471,153 @@ With prefix ARG, prompt for a buffer to kill instead."
   :config
   (require 'org-mouse)
   (require 'org-id)
+
+  ;;;; Org link multi-destination navigation
+
+  (defvar my-org-link-actions
+    '((current . ((display-buffer-same-window)
+                  (inhibit-same-window . nil)))
+      (other   . ((display-buffer-pop-up-window)
+                  (inhibit-same-window . t)))
+      (right   . ((display-buffer-in-direction)
+                  (direction . right)
+                  (window-width . 0.5)
+                  (inhibit-same-window . t)))
+      (down    . ((display-buffer-in-direction)
+                  (direction . below)
+                  (window-height . 0.5)
+                  (inhibit-same-window . t)))
+      (tab     . ((display-buffer-in-tab)
+                  (tab-name . nil)))
+      (frame   . ((display-buffer-pop-up-frame)
+                  (inhibit-same-window . t))))
+    "Mapping from action symbol to display-buffer action spec.")
+
+  (defun my-org-open-link-with-action (action)
+    "Open the org link at point in the window described by ACTION."
+    (let ((display-buffer-overriding-action
+           (alist-get action my-org-link-actions))
+          (switch-to-buffer-obey-display-actions t))
+      (org-open-at-point)))
+
+  (defun my-org-link-at-pos-p (pos)
+    "Return non-nil if POS is on an org link."
+    (when pos
+      (save-excursion
+        (goto-char pos)
+        (eq (org-element-type (org-element-context)) 'link))))
+
+  (defun my-org-link-at-point-p ()
+    (my-org-link-at-pos-p (point)))
+
+  (defun my-org-link-at-click-p ()
+    "Check link presence at the position of the current mouse event."
+    (let ((event last-input-event))
+      (and (consp event)
+           (my-org-link-at-pos-p (posn-point (event-start event))))))
+
+  (defun my-org-link-opener (action)
+    "Return an interactive command that opens the link at point with ACTION."
+    (lambda (&optional event)
+      (interactive (list last-input-event))
+      (when (and (consp event) (eventp event))
+        (mouse-set-point event))
+      (my-org-open-link-with-action action)))
+
+  (defvar my-org-link-nav-hint
+    "RET here · S-RET other · C-RET right · C-M-RET down · M-RET tab · s-RET frame"
+    "Echo-area hint shown when point is on an org link.")
+
+  (defun my-org-link-nav-eldoc (callback &rest _)
+    "Eldoc documentation function: show modifier hint when on a link."
+    (when (my-org-link-at-point-p)
+      (funcall callback my-org-link-nav-hint)))
+
+  (defvar my-org-link-nav-mode-map
+    (let ((map (make-sparse-keymap)))
+      (dolist (entry '((kbd "RET"           current keyboard)
+                       (kbd "S-RET"         other   keyboard)
+                       (kbd "C-RET"         right   keyboard)
+                       (kbd "C-M-RET"       down    keyboard)
+                       (kbd "M-RET"         tab     keyboard)
+                       (kbd "s-RET"         frame   keyboard)
+                       (vec [mouse-1]       current mouse)
+                       (vec [S-mouse-1]     other   mouse)
+                       (vec [C-mouse-1]     right   mouse)
+                       (vec [C-M-mouse-1]   down    mouse)
+                       (vec [M-mouse-1]     tab     mouse)
+                       (vec [s-mouse-1]     frame   mouse)))
+        (let* ((kind      (nth 0 entry))
+               (key       (nth 1 entry))
+               (action    (nth 2 entry))
+               (mode      (nth 3 entry))
+               (predicate (if (eq mode 'mouse)
+                              #'my-org-link-at-click-p
+                            #'my-org-link-at-point-p))
+               (cmd (my-org-link-opener action))
+               (k (if (eq kind 'kbd) (kbd key) key)))
+          (define-key map k
+            `(menu-item ,(format "org-link-%s" action)
+                        ,cmd
+                        :filter ,(lambda (c) (when (funcall predicate) c))))))
+      map)
+    "Keymap for `my-org-link-nav-mode'.")
+
+  (define-minor-mode my-org-link-nav-mode
+    "Modifier-aware navigation for org links (keyboard and mouse)."
+    :keymap my-org-link-nav-mode-map)
+
+  (add-hook 'my-org-link-nav-mode-hook
+            (lambda ()
+              (if my-org-link-nav-mode
+                  (add-hook 'eldoc-documentation-functions
+                            #'my-org-link-nav-eldoc nil t)
+                (remove-hook 'eldoc-documentation-functions
+                             #'my-org-link-nav-eldoc t))))
+
+  (defun my-org-link-nav-mouse-buf-pos ()
+    "Return buffer position under the mouse pointer, or nil."
+    (let* ((mpos (mouse-pixel-position))
+           (frame (car mpos))
+           (x (cadr mpos))
+           (y (cddr mpos)))
+      (when (and frame (integerp x) (integerp y))
+        (ignore-errors
+          (posn-point (posn-at-x-y x y frame))))))
+
+  (defun my-org-link-nav-augment-tooltip (orig-fn help-string)
+    "Append modifier hint to tooltip text when hovering an org link."
+    (let ((augmented
+           (if (and help-string
+                    (derived-mode-p 'org-mode)
+                    (my-org-link-at-pos-p (my-org-link-nav-mouse-buf-pos)))
+               (concat help-string "\n" my-org-link-nav-hint)
+             help-string)))
+      (funcall orig-fn augmented)))
+
+  (advice-add 'tooltip-show-help :around #'my-org-link-nav-augment-tooltip)
+
+  ;; RET in evil normal state is bound to evil-ret (in motion state), which lives
+  ;; in evil's emulation keymaps above our regular minor-mode keymap. We use
+  ;; evil-define-minor-mode-key to place the binding at the evil emulation level
+  ;; (minor-mode keymaps slot), above evil-ret and evil-org-return. The :filter
+  ;; returns nil when not on a link so evil-ret still runs normally.
+  (defun my-org-link-nav-filter (cmd)
+    "Return CMD when on an org link, nil otherwise — for menu-item :filter."
+    (when (my-org-link-at-point-p) cmd))
+
+  (defun my-org-link-open-current ()
+    "Open the org link at point in the current window."
+    (interactive)
+    (my-org-open-link-with-action 'current))
+
+  (with-eval-after-load 'evil
+    (evil-define-minor-mode-key 'normal 'my-org-link-nav-mode (kbd "RET")
+      '(menu-item "org-link-current" my-org-link-open-current
+                  :filter my-org-link-nav-filter)))
+
+  (add-hook 'org-mode-hook #'my-org-link-nav-mode)
+
   (run-with-idle-timer 2 nil
     (lambda ()
       (org-id-update-id-locations
