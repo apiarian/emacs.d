@@ -622,8 +622,19 @@ fallback without naming any specific command."
       (if (ignore-errors (my-org-link-at-point-p))
           (my-org-open-link-with-action action)
         (let ((my-org-link-nav-mode nil))
-          (call-interactively
-           (or (key-binding (this-command-keys-vector) t) #'ignore))))))
+          ;; `key-binding' does not apply function-key-map translation, so a
+          ;; raw [return] lookup misses bindings on "\C-m" (char 13).  Map
+          ;; the function-key form to its ASCII counterpart for the lookup.
+          (let* ((keys (this-command-keys-vector))
+                 (translated (vconcat
+                              (mapcar (lambda (k)
+                                        (pcase k
+                                          ('return ?\r)
+                                          ('tab    ?\t)
+                                          (_ k)))
+                                      keys))))
+            (call-interactively
+             (or (key-binding translated t) #'ignore)))))))
 
   (defvar my-org-link-nav-hint
     "RET here · S-RET other · C-RET right · C-M-RET down · M-RET tab · s-RET frame (GUI keys)"
