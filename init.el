@@ -524,10 +524,10 @@ With prefix ARG, prompt for a buffer to kill instead."
   ;;   (function key symbol); (kbd "C-RET") produces the char-13 variant which
   ;;   doesn't match modifier+return events.
   ;;
-  ;; - Keyboard commands use my-org-link-kbd-opener (direct binding, no
-  ;;   menu-item :filter): the command itself checks for a link and calls the
-  ;;   fallback dynamically via (let ((my-org-link-nav-mode nil)) (key-binding ...)).
-  ;;   menu-item :filter was unreliable for keyboard events through emulation maps.
+  ;; - Keyboard commands use my-org-link-kbd-opener wrapped in a menu-item :filter
+  ;;   (like mouse bindings) so that RET falls through in evil insert state.
+  ;;   my-org-link-kbd-active-p gates the binding; the command itself handles the
+  ;;   fallback when not on a link via (let ((my-org-link-nav-mode nil)) (key-binding ...)).
   ;;
   ;; - Link detection (my-org-link-at-pos-p) tries three methods: keymap text
   ;;   property (org sets org-mouse-map on link text), org-in-regexp, and
@@ -602,6 +602,13 @@ bracket characters that may or may not carry each property."
       (and (consp event)
            (my-org-link-at-pos-p (posn-point (event-start event))))))
 
+  (defun my-org-link-kbd-active-p ()
+    "Non-nil when org-link RET-style bindings should fire.
+Returns nil in evil insert state so RET falls through to ordinary
+insert behavior; mouse bindings are unaffected."
+    (or (not (bound-and-true-p evil-local-mode))
+        (not (eq evil-state 'insert))))
+
   (defun my-org-link-opener (action)
     "Return an interactive mouse command that opens a clicked link with ACTION."
     (lambda (&optional event)
@@ -675,7 +682,10 @@ fallback without naming any specific command."
     (let* ((k      (kbd (nth 0 entry)))
            (action (nth 1 entry))
            (cmd    (my-org-link-kbd-opener action)))
-      (define-key my-org-link-nav-mode-map k cmd)))
+      (define-key my-org-link-nav-mode-map k
+        `(menu-item ,(format "org-link-kbd-%s" action)
+                    ,cmd
+                    :filter ,(lambda (c) (when (my-org-link-kbd-active-p) c))))))
 
   ;; Consume modifier down-events so the up-event fires cleanly.  Using ignore
   ;; (not mouse-set-point) avoids the region-activation side effect of
