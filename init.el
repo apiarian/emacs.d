@@ -908,7 +908,7 @@ target heading if one does not exist."
                                  (save-buffer)))
                              (insert (org-link-make-string
                                       (concat "id:" id) candidate))))))
-              :buffer "*helm org headings*")))
+              :buffer "*helm org headings*"))))
 
   (defun org-retrofit-heading-link-to-id ()
     "Convert the link at point to use an org-id UUID.
