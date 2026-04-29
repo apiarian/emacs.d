@@ -860,37 +860,55 @@ target heading if one does not exist."
                                     heading)
                            (list buf pos heading))
                       headings))))))
-      (helm :sources
-            (list
-             (helm-build-sync-source "Org Headings"
-               :candidates (nreverse headings)
-               :action (lambda (choice)
-                         (let* ((buf (nth 0 choice))
-                                (pos (nth 1 choice))
-                                (heading (nth 2 choice))
-                                (id (with-current-buffer buf
-                                      (save-excursion
-                                        (goto-char pos)
-                                        (org-back-to-heading t)
-                                        (org-id-get-create)))))
-                           (insert (org-link-make-string
-                                    (concat "id:" id) heading)))))
-             (helm-build-dummy-source "Create new heading"
-               :action (lambda (candidate)
-                         (let* ((file (expand-file-name "misc.org" notes-dir))
-                                (buf (find-file-noselect file))
-                                id)
-                           (with-current-buffer buf
-                             (save-excursion
-                               (goto-char (point-max))
-                               (unless (bolp) (insert "\n"))
-                               (insert "* " candidate "\n")
-                               (forward-line -1)
-                               (setq id (org-id-get-create))
-                               (save-buffer)))
-                           (insert (org-link-make-string
-                                    (concat "id:" id) candidate))))))
-            :buffer "*helm org headings*")))
+      (let* ((today-cell (my-org-find-or-create-today-heading))
+             (today-label (format "Today's note %s"
+                                  (format-time-string "<%Y-%m-%d %a>"))))
+        (helm :sources
+              (list
+               (helm-build-sync-source "Today"
+                 :candidates (list (cons today-label today-cell))
+                 :action (lambda (cell)
+                           (let* ((buf (car cell))
+                                  (pos (cdr cell))
+                                  (heading (with-current-buffer buf
+                                             (save-excursion
+                                               (goto-char pos)
+                                               (org-get-heading t t t t))))
+                                  (id (with-current-buffer buf
+                                        (save-excursion
+                                          (goto-char pos)
+                                          (org-id-get-create)))))
+                             (insert (org-link-make-string
+                                      (concat "id:" id) heading)))))
+               (helm-build-sync-source "Org Headings"
+                 :candidates (nreverse headings)
+                 :action (lambda (choice)
+                           (let* ((buf (nth 0 choice))
+                                  (pos (nth 1 choice))
+                                  (heading (nth 2 choice))
+                                  (id (with-current-buffer buf
+                                        (save-excursion
+                                          (goto-char pos)
+                                          (org-back-to-heading t)
+                                          (org-id-get-create)))))
+                             (insert (org-link-make-string
+                                      (concat "id:" id) heading)))))
+               (helm-build-dummy-source "Create new heading"
+                 :action (lambda (candidate)
+                           (let* ((file (expand-file-name "misc.org" notes-dir))
+                                  (buf (find-file-noselect file))
+                                  id)
+                             (with-current-buffer buf
+                               (save-excursion
+                                 (goto-char (point-max))
+                                 (unless (bolp) (insert "\n"))
+                                 (insert "* " candidate "\n")
+                                 (forward-line -1)
+                                 (setq id (org-id-get-create))
+                                 (save-buffer)))
+                             (insert (org-link-make-string
+                                      (concat "id:" id) candidate))))))
+              :buffer "*helm org headings*")))
 
   (defun org-retrofit-heading-link-to-id ()
     "Convert the link at point to use an org-id UUID.
@@ -975,27 +993,50 @@ and [[file:path::#custom-id]] links."
       (goto-char (point-min))
       (isearch-resume heading-text nil nil t nil t)))
 
+  (defun my-org-find-or-create-today-heading ()
+    "Find or create today's heading in ~/notes/misc.org.
+Searches for a level-1 heading matching today's inactive timestamp
+\\=`<YYYY-MM-DD Day>\\='. If not found, appends one at end-of-file and
+saves. Returns a cons cell (buffer . position) pointing at the heading
+line. Does not switch the current buffer."
+    (let* ((file (expand-file-name "~/notes/misc.org"))
+           (date-str (format-time-string "<%Y-%m-%d %a>"))
+           (date-re (concat "^\\*+ " (regexp-quote date-str)))
+           (buf (find-file-noselect file)))
+      (with-current-buffer buf
+        (save-excursion
+          (widen)
+          (goto-char (point-min))
+          (if (re-search-forward date-re nil t)
+              (progn
+                (org-back-to-heading t)
+                (cons buf (point)))
+            (goto-char (point-max))
+            (unless (bolp) (insert "\n"))
+            (insert "* " date-str "\n")
+            (forward-line -1)
+            (save-buffer)
+            (cons buf (point)))))))
+
   (defun org-goto-today ()
     "Jump to today's date heading in ~/notes/misc.org.
-If already visiting that file, just jump. Otherwise open it in a split."
+If already visiting that file, just jump. Otherwise open it in a split.
+Creates the heading if it does not yet exist."
     (interactive)
-    (let* ((file (expand-file-name "~/notes/misc.org"))
-           (date-re (concat "^\\*+ "
-                            (regexp-quote (format-time-string "<%Y-%m-%d %a>")))))
+    (let* ((result (my-org-find-or-create-today-heading))
+           (buf (car result))
+           (pos (cdr result))
+           (file (buffer-file-name buf)))
       (if (string= (buffer-file-name) file)
           nil
         (if (get-file-buffer file)
             (pop-to-buffer (get-file-buffer file))
           (find-file-other-window file)))
       (widen)
-      (goto-char (point-min))
-      (if (re-search-forward date-re nil t)
-          (progn
-            (org-back-to-heading t)
-            (org-fold-show-entry)
-            (org-fold-show-children)
-            (recenter 3))
-        (message "No heading for today found")))))
+      (goto-char pos)
+      (org-fold-show-entry)
+      (org-fold-show-children)
+      (recenter 3))))
 
 ;;;; Obsidian Import
 
