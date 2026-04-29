@@ -837,6 +837,33 @@ When called on a heading:
 
         (message "Converted %d link(s) to tag ':%s:'" count tag-name))))
 
+  (defun my-helm-insert-id--link (buf pos heading &optional back-to-heading)
+    "Go to POS in BUF, get-or-create an org-id, and insert an id link.
+HEADING is the display text for the link.  When BACK-TO-HEADING is
+non-nil, call `org-back-to-heading' before `org-id-get-create'."
+    (let ((id (with-current-buffer buf
+                (save-excursion
+                  (goto-char pos)
+                  (when back-to-heading (org-back-to-heading t))
+                  (org-id-get-create)))))
+      (insert (org-link-make-string (concat "id:" id) heading))))
+
+  (defun my-helm-insert-id--create-new-heading (candidate notes-dir)
+    "Append CANDIDATE as a new top-level heading in misc.org under NOTES-DIR.
+Creates an org-id for the new heading, then inserts an id link at point."
+    (let* ((file (expand-file-name "misc.org" notes-dir))
+           (buf (find-file-noselect file))
+           id)
+      (with-current-buffer buf
+        (save-excursion
+          (goto-char (point-max))
+          (unless (bolp) (insert "\n"))
+          (insert "* " candidate "\n")
+          (forward-line -1)
+          (setq id (org-id-get-create))
+          (save-buffer)))
+      (insert (org-link-make-string (concat "id:" id) candidate))))
+
   (defun my-helm-insert-org-id-link ()
     "Insert an id-based link to an org heading using helm.
 Searches all .org files in ~/notes/. Creates an org-id on the
@@ -873,41 +900,17 @@ target heading if one does not exist."
                                   (heading (with-current-buffer buf
                                              (save-excursion
                                                (goto-char pos)
-                                               (org-get-heading t t t t))))
-                                  (id (with-current-buffer buf
-                                        (save-excursion
-                                          (goto-char pos)
-                                          (org-id-get-create)))))
-                             (insert (org-link-make-string
-                                      (concat "id:" id) heading)))))
+                                               (org-get-heading t t t t)))))
+                             (my-helm-insert-id--link buf pos heading))))
                (helm-build-sync-source "Org Headings"
                  :candidates (nreverse headings)
                  :action (lambda (choice)
-                           (let* ((buf (nth 0 choice))
-                                  (pos (nth 1 choice))
-                                  (heading (nth 2 choice))
-                                  (id (with-current-buffer buf
-                                        (save-excursion
-                                          (goto-char pos)
-                                          (org-back-to-heading t)
-                                          (org-id-get-create)))))
-                             (insert (org-link-make-string
-                                      (concat "id:" id) heading)))))
+                           (my-helm-insert-id--link
+                            (nth 0 choice) (nth 1 choice) (nth 2 choice) t)))
                (helm-build-dummy-source "Create new heading"
                  :action (lambda (candidate)
-                           (let* ((file (expand-file-name "misc.org" notes-dir))
-                                  (buf (find-file-noselect file))
-                                  id)
-                             (with-current-buffer buf
-                               (save-excursion
-                                 (goto-char (point-max))
-                                 (unless (bolp) (insert "\n"))
-                                 (insert "* " candidate "\n")
-                                 (forward-line -1)
-                                 (setq id (org-id-get-create))
-                                 (save-buffer)))
-                             (insert (org-link-make-string
-                                      (concat "id:" id) candidate))))))
+                           (my-helm-insert-id--create-new-heading
+                            candidate notes-dir))))
               :buffer "*helm org headings*"))))
 
   (defun org-retrofit-heading-link-to-id ()
