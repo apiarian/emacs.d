@@ -7,7 +7,13 @@
  '(helm-minibuffer-history-key "M-p")
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(adaptive-wrap avy dockerfile-mode dumb-jump evil-collection evil-org
+		   evil-surround forge god-mode helm-org-ql
+		   highlight-thing jinx markdown-mermaid minions
+		   paredit slime solarized-theme typescript-mode
+		   undo-tree vterm-anti-flicker-filter web-mode
+		   yaml-mode))
  '(package-vc-selected-packages 'nil)
  '(tab-bar-mode t)
  '(tool-bar-mode nil))
