@@ -449,7 +449,16 @@ With prefix ARG, prompt for a buffer to kill instead."
 
 (use-package org-ql
   :ensure t
-  :defer t)
+  :defer t
+  :config
+  (with-eval-after-load 'org-ql-view
+    ;; In org-ql-search results, tweak RET and q. Use evil-define-key in
+    ;; motion state so the bindings aren't shadowed by evil-collection's
+    ;; bindings on org-agenda-mode-map.
+    ;;   RET: keep the results buffer visible; open entry in another window.
+    ;;   q:   close the popup window (not just bury), like magit does.
+    (evil-define-key 'motion org-ql-view-map (kbd "RET") #'org-agenda-goto)
+    (evil-define-key 'motion org-ql-view-map (kbd "q")   #'quit-window)))
 
 (use-package helm-org-ql
   :ensure t
@@ -503,7 +512,8 @@ With prefix ARG, prompt for a buffer to kill instead."
   :bind (("C-c l" . my-helm-insert-org-id-link)
          ("C-c L" . org-retrofit-heading-link-to-id)
          ("C-c C-h" . helm-org-agenda-files-headings)
-         ("C-c s" . org-search-current-heading))
+         ("C-c s" . org-search-current-heading)
+         ("C-c B" . my-org-backlinks))
   :config
   (require 'org-mouse)
   (require 'org-id)
@@ -873,6 +883,81 @@ Creates an org-id for the new heading, then inserts an id link at point."
           (setq id (org-id-get-create))
           (save-buffer)))
       (insert (org-link-make-string (concat "id:" id) candidate))))
+
+  (defun my-org-backlinks--alternatives-at-point ()
+    "Return a list of regex alternatives matching any link to the heading at point.
+Read-only — never creates ids. Caller must already be on a heading."
+    (let (alts)
+      (when-let ((id (org-id-get)))
+        (push (concat "id:" (regexp-quote id)) alts))
+      (when-let ((heading (org-get-heading t t t t)))
+        (unless (string-empty-p heading)
+          (push (concat "\\*" (regexp-quote heading)) alts)))
+      (when-let ((cid (org-entry-get nil "CUSTOM_ID")))
+        (push (concat "#" (regexp-quote cid)) alts))
+      alts))
+
+  (defun my-org-backlinks--collect-alternatives (include-ancestors include-descendants)
+    "Collect all link-target regex alternatives for the current heading,
+plus optionally its ancestors and descendants."
+    (let (alts)
+      (org-with-wide-buffer
+       (org-back-to-heading t)
+       (setq alts (my-org-backlinks--alternatives-at-point))
+       (when include-ancestors
+         (save-excursion
+           (while (org-up-heading-safe)
+             (setq alts (nconc (my-org-backlinks--alternatives-at-point) alts)))))
+       (when include-descendants
+         (let ((subtree-end (save-excursion (org-end-of-subtree t t))))
+           (save-excursion
+             (outline-next-heading)
+             (while (< (point) subtree-end)
+               (setq alts (nconc (my-org-backlinks--alternatives-at-point) alts))
+               (outline-next-heading))))))
+      alts))
+
+  (defun my-org-backlinks (include-ancestors include-descendants)
+    "Open an `org-ql-search' buffer of entries linking to the current heading.
+With INCLUDE-ANCESTORS non-nil, also include links to ancestor headings.
+With INCLUDE-DESCENDANTS non-nil, also include links to descendants
+(the subtree below the current heading).
+
+Matches all org link forms targeting a heading: `id:UUID', fuzzy
+`*Heading Name', `#custom-id', and `file:…::' cross-file variants of each.
+
+Interactively prompts for the scope: [h]eading only, +[a]ncestors,
++[d]escendants, +[b]oth."
+    (interactive
+     (let ((choice (read-multiple-choice
+                    "Include in backlink search"
+                    '((?h "heading only"   "Just the current heading")
+                      (?a "+ ancestors"    "Heading and its ancestor headings")
+                      (?d "+ descendants"  "Heading and its descendants (subtree)")
+                      (?b "+ both"         "Heading, ancestors, and descendants")))))
+       (pcase (car choice)
+         (?h '(nil nil))
+         (?a '(t   nil))
+         (?d '(nil t))
+         (?b '(t   t)))))
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Not in an org buffer"))
+    (let* ((alts (my-org-backlinks--collect-alternatives include-ancestors include-descendants))
+           (root-heading (save-excursion
+                           (org-back-to-heading t)
+                           (org-get-heading t t t t)))
+           (scope-tag (cond ((and include-ancestors include-descendants)
+                             "heading+ancestors+descendants")
+                            (include-ancestors  "heading+ancestors")
+                            (include-descendants "heading+descendants")
+                            (t                   "heading")))
+           (regex (format "\\[\\[\\(?:[^]]+::\\)?\\(?:%s\\)\\(?:\\]\\[\\|\\]\\]\\)"
+                          (mapconcat #'identity alts "\\|"))))
+      (org-ql-search
+        (org-agenda-files)
+        `(regexp ,regex)
+        :title (format "Backlinks [%s]: %s" scope-tag root-heading)
+        :sort '(date))))
 
   (defun my-helm-insert-org-id-link ()
     "Insert an id-based link to an org heading using helm.
