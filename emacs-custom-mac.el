@@ -16,7 +16,14 @@
  '(helm-minibuffer-history-key "M-p")
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages nil)
+ '(package-selected-packages
+   '(adaptive-wrap avy catppuccin-theme dockerfile-mode dumb-jump
+		   evil-collection evil-org evil-surround forge
+		   goto-chg gptel helm-org-ql highlight-thing
+		   inheritenv jinx kanagawa-themes markdown-mermaid
+		   minions monet org-modern org-modern-indent paredit
+		   slime solarized-theme typescript-mode undo-tree
+		   vterm-anti-flicker-filter web-mode yaml-mode))
  '(package-vc-selected-packages 'nil)
  '(safe-local-variable-values
    '((eval progn

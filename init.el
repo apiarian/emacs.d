@@ -24,6 +24,13 @@
 Set in host-specific init-{hostname}.el files.
 Supported values: go, typescript, slime.")
 
+(defvar my-gptel-setup-fn nil
+  "Per-host gptel configuration thunk.
+Set in `init-{hostname}.el' to a function that configures
+`gptel-backend' and `gptel-model' for the host (different keys,
+models, or even different backends across machines).  Called inside
+`gptel''s `:config' block.")
+
 ;;;; Package Infrastructure
 
 (set-language-environment "UTF-8")
@@ -615,9 +622,12 @@ bracket characters that may or may not carry each property."
   (defun my-org-link-kbd-active-p ()
     "Non-nil when org-link RET-style bindings should fire.
 Returns nil in evil insert state so RET falls through to ordinary
-insert behavior; mouse bindings are unaffected."
-    (or (not (bound-and-true-p evil-local-mode))
-        (not (eq evil-state 'insert))))
+insert behavior; nil when a transient menu is active so transient's
+suffix dispatch is not intercepted (otherwise hitting RET in a menu
+like `gptel-menu' fails); mouse bindings are unaffected."
+    (and (not (bound-and-true-p transient--prefix))
+         (or (not (bound-and-true-p evil-local-mode))
+             (not (eq evil-state 'insert)))))
 
   (defun my-org-link-opener (action)
     "Return an interactive mouse command that opens a clicked link with ACTION."
@@ -1333,6 +1343,163 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   :mode ("\\.html\\'" . web-mode)
   :hook ((web-mode . visual-line-mode)
          (web-mode . adaptive-wrap-prefix-mode)))
+
+;;;; LLM
+
+(use-package gptel
+  :ensure t
+  :defer t
+  :bind (("C-c g" . gptel-menu)
+         ("C-c G" . gptel))
+  :custom
+  (gptel-default-mode 'org-mode)
+  (gptel-org-branching-context t)        ; each org subtree = its own thread
+  :config
+  (when my-gptel-setup-fn
+    (funcall my-gptel-setup-fn)))
+
+;; gptel: follow heading links in org prompts.
+;;
+;; gptel natively follows file:/attachment:/http: links (with
+;; gptel-track-media), but not id:, *Heading, or #custom-id — and even file:
+;; links send the whole file rather than the linked subtree. We hook
+;; gptel-prompt-transform-functions to scan the prompt buffer, resolve any
+;; heading-style links, and append the linked subtrees as additional context.
+;; Recurses up to `my-gptel-link-depth' (links inside expanded subtrees are
+;; expanded too).  Targets are deduplicated by org-id when available, by
+;; (file . pos) otherwise.
+
+(defcustom my-gptel-link-depth 2
+  "Maximum recursion depth for following heading links in gptel prompts.
+0 disables; 1 expands the prompt's own links; 2 also expands links
+inside expanded subtrees; etc."
+  :type 'integer
+  :group 'gptel)
+
+(defun my-gptel--link-target (link)
+  "Resolve LINK (an org-element link object) to (FILE . POS), or nil.
+Handles id:, fuzzy *Heading, #custom-id, and file:path::*Heading or
+file:path::#custom-id links."
+  (let ((type   (org-element-property :type link))
+        (path   (org-element-property :path link))
+        (search (org-element-property :search-option link)))
+    (cond
+     ((equal type "id")
+      (when-let ((m (org-id-find path 'marker)))
+        (prog1 (and (marker-buffer m)
+                    (cons (buffer-file-name (marker-buffer m))
+                          (marker-position m)))
+          (set-marker m nil))))
+     ((and (equal type "fuzzy") (string-prefix-p "*" path) (buffer-file-name))
+      (save-excursion
+        (save-restriction
+          (widen) (goto-char (point-min))
+          (when (re-search-forward
+                 (format org-complex-heading-regexp-format
+                         (regexp-quote (substring path 1)))
+                 nil t)
+            (cons (buffer-file-name) (match-beginning 0))))))
+     ((and (equal type "custom-id") (buffer-file-name))
+      (when-let ((pos (org-find-property "CUSTOM_ID" path)))
+        (cons (buffer-file-name) pos)))
+     ((and (equal type "file") search
+           (string-match-p "\\.org\\'" path))
+      (let ((file (expand-file-name path)))
+        (when (file-readable-p file)
+          (with-current-buffer (find-file-noselect file)
+            (save-excursion
+              (save-restriction
+                (widen) (goto-char (point-min))
+                (cond
+                 ((string-prefix-p "*" search)
+                  (when (re-search-forward
+                         (format org-complex-heading-regexp-format
+                                 (regexp-quote (substring search 1)))
+                         nil t)
+                    (cons file (match-beginning 0))))
+                 ((string-prefix-p "#" search)
+                  (when-let ((pos (org-find-property "CUSTOM_ID"
+                                                    (substring search 1))))
+                    (cons file pos)))))))))))))
+
+(defun my-gptel--canonical-key (target)
+  "Return a dedupe key for TARGET (FILE . POS), preferring org-id when present."
+  (when target
+    (let ((file (car target)) (pos (cdr target)))
+      (or (and file (file-readable-p file)
+               (with-current-buffer (find-file-noselect file)
+                 (save-excursion
+                   (save-restriction
+                     (widen) (goto-char pos)
+                     (when-let ((id (org-id-get)))
+                       (cons :id id))))))
+          (cons file pos)))))
+
+(defun my-gptel--extract-subtree (target)
+  "Return the subtree at TARGET as a string, with a source banner."
+  (with-current-buffer (find-file-noselect (car target))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (goto-char (cdr target))
+        (org-back-to-heading t)
+        (let* ((heading (org-get-heading t t t t))
+               (start   (point))
+               (end     (save-excursion (org-end-of-subtree t t)))
+               (rel     (file-relative-name
+                         (or (buffer-file-name) "?") "~/")))
+          (concat (format "\n;; Linked: %s :: %s\n" rel heading)
+                  (buffer-substring-no-properties start end)))))))
+
+(defun my-gptel--collect-link-targets-in-region (beg end seen)
+  "Return list of new (FILE . POS) targets for links in BEG..END.
+Skips targets whose canonical key is already in SEEN."
+  (let (targets)
+    (save-excursion
+      (save-restriction
+        (narrow-to-region beg end)
+        (dolist (link (org-element-map (org-element-parse-buffer) 'link
+                        #'identity))
+          (when-let* ((tgt (my-gptel--link-target link))
+                      (key (my-gptel--canonical-key tgt)))
+            (unless (or (member key seen) (member tgt targets))
+              (push tgt targets))))))
+    (nreverse targets)))
+
+(defun my-gptel-resolve-heading-links (&optional _info)
+  "Append linked-heading subtrees to the gptel prompt buffer.
+Recognizes id:, *Heading, #custom-id, and file:path::heading-anchor
+links.  Recurses to `my-gptel-link-depth' levels."
+  (when (and (derived-mode-p 'org-mode)
+             (> my-gptel-link-depth 0))
+    (let ((seen nil)
+          (scan-beg (point-min))
+          (scan-end (point-max))
+          (depth my-gptel-link-depth)
+          (banner-emitted nil))
+      (while (> depth 0)
+        (let ((targets (my-gptel--collect-link-targets-in-region
+                        scan-beg scan-end seen)))
+          (if (null targets)
+              (setq depth 0)
+            (dolist (tgt targets)
+              (push (my-gptel--canonical-key tgt) seen))
+            (goto-char (point-max))
+            (unless banner-emitted
+              (insert "\n\n;; ----- Linked context (followed from heading links) -----\n")
+              (setq banner-emitted t))
+            (let ((insert-start (point)))
+              (dolist (tgt targets)
+                (when-let ((subtree (ignore-errors
+                                      (my-gptel--extract-subtree tgt))))
+                  (insert subtree)
+                  (unless (bolp) (insert "\n"))))
+              (setq scan-beg insert-start scan-end (point-max)))
+            (setq depth (1- depth))))))))
+
+(with-eval-after-load 'gptel
+  (add-hook 'gptel-prompt-transform-functions
+            #'my-gptel-resolve-heading-links 'append))
 
 ;;;; Lisp Development
 
