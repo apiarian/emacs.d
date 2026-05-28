@@ -867,6 +867,10 @@ When called on a heading:
 
         (message "Converted %d link(s) to tag ':%s:'" count tag-name))))
 
+  (defvar my-helm-insert-id--recent nil
+    "Session list of recently inserted org-id link headings, newest first.
+Capped at 5 entries; duplicates are removed on push.")
+
   (defun my-helm-insert-id--link (buf pos heading &optional back-to-heading)
     "Go to POS in BUF, get-or-create an org-id, and insert an id link.
 HEADING is the display text for the link.  When BACK-TO-HEADING is
@@ -876,7 +880,11 @@ non-nil, call `org-back-to-heading' before `org-id-get-create'."
                   (goto-char pos)
                   (when back-to-heading (org-back-to-heading t))
                   (org-id-get-create)))))
-      (insert (org-link-make-string (concat "id:" id) heading))))
+      (insert (org-link-make-string (concat "id:" id) heading))
+      ;; Track recently inserted headings (session-only, newest first, max 5).
+      (setq my-helm-insert-id--recent
+            (seq-take (cons heading (delete heading my-helm-insert-id--recent))
+                      5))))
 
   (defun my-helm-insert-id--create-new-heading (candidate notes-dir)
     "Append CANDIDATE as a new top-level heading in misc.org under NOTES-DIR.
@@ -994,28 +1002,61 @@ target heading if one does not exist."
                       headings))))))
       (let* ((today-cell (my-org-find-or-create-today-heading))
              (today-label (format "Today's note %s"
-                                  (format-time-string "<%Y-%m-%d %a>"))))
+                                  (format-time-string "<%Y-%m-%d %a>")))
+             (yesterday-time (time-subtract (current-time) (seconds-to-time 86400)))
+             (yesterday-cell (my-org-find-or-create-today-heading yesterday-time t))
+             (yesterday-label (format "Yesterday's note %s"
+                                      (format-time-string "<%Y-%m-%d %a>" yesterday-time))))
         (helm :sources
-              (list
-               (helm-build-sync-source "Today"
-                 :candidates (list (cons today-label today-cell))
-                 :action (lambda (cell)
-                           (let* ((buf (car cell))
-                                  (pos (cdr cell))
-                                  (heading (with-current-buffer buf
-                                             (save-excursion
-                                               (goto-char pos)
-                                               (org-get-heading t t t t)))))
-                             (my-helm-insert-id--link buf pos heading))))
-               (helm-build-sync-source "Org Headings"
-                 :candidates (nreverse headings)
-                 :action (lambda (choice)
-                           (my-helm-insert-id--link
-                            (nth 0 choice) (nth 1 choice) (nth 2 choice) t)))
-               (helm-build-dummy-source "Create new heading"
-                 :action (lambda (candidate)
-                           (my-helm-insert-id--create-new-heading
-                            candidate notes-dir))))
+              (append
+               (list
+                (helm-build-sync-source "Today"
+                  :candidates (list (cons today-label today-cell))
+                  :action (lambda (cell)
+                            (let* ((buf (car cell))
+                                   (pos (cdr cell))
+                                   (heading (with-current-buffer buf
+                                              (save-excursion
+                                                (goto-char pos)
+                                                (org-get-heading t t t t)))))
+                              (my-helm-insert-id--link buf pos heading)))))
+               (when yesterday-cell
+                 (list
+                  (helm-build-sync-source "Yesterday"
+                    :candidates (list (cons yesterday-label yesterday-cell))
+                    :action (lambda (cell)
+                              (let* ((buf (car cell))
+                                     (pos (cdr cell))
+                                     (heading (with-current-buffer buf
+                                                (save-excursion
+                                                  (goto-char pos)
+                                                  (org-get-heading t t t t)))))
+                                (my-helm-insert-id--link buf pos heading))))))
+               (when my-helm-insert-id--recent
+                 (list
+                  (helm-build-sync-source "Recently linked"
+                    :candidates (lambda ()
+                                  ;; Filter to headings that still exist in `headings'.
+                                  (let ((known (mapcar (lambda (h) (nth 3 h)) headings)))
+                                    (cl-remove-if-not (lambda (h) (member h known))
+                                                      my-helm-insert-id--recent)))
+                    :action (lambda (heading-name)
+                              (let ((choice (cl-find heading-name headings
+                                                     :key (lambda (h) (nth 3 h))
+                                                     :test #'string=)))
+                                (when choice
+                                  (my-helm-insert-id--link
+                                   (nth 1 choice) (nth 2 choice) (nth 3 choice) t)))))))
+               (list
+                (helm-build-sync-source "Org Headings"
+                  :candidates (nreverse headings)
+                  :action (lambda (choice)
+                            (my-helm-insert-id--link
+                             (nth 0 choice) (nth 1 choice) (nth 2 choice) t)))
+                (helm-build-dummy-source "Create new heading"
+                  :action (lambda (candidate)
+                            (my-helm-insert-id--create-new-heading
+                             candidate notes-dir)))))
               :buffer "*helm org headings*"))))
 
   (defun org-retrofit-heading-link-to-id ()
@@ -1101,14 +1142,17 @@ and [[file:path::#custom-id]] links."
       (goto-char (point-min))
       (isearch-resume heading-text nil nil t nil t)))
 
-  (defun my-org-find-or-create-today-heading ()
-    "Find or create today's heading in ~/notes/misc.org.
-Searches for a level-1 heading matching today's inactive timestamp
-\\=`<YYYY-MM-DD Day>\\='. If not found, appends one at end-of-file and
-saves. Returns a cons cell (buffer . position) pointing at the heading
-line. Does not switch the current buffer."
+  (defun my-org-find-or-create-today-heading (&optional time no-create)
+    "Find or create a date heading in ~/notes/misc.org.
+TIME is an Emacs time value (default: current time). Searches for a
+level-1 heading matching an inactive timestamp \\=`<YYYY-MM-DD Day>\\='.
+If not found and NO-CREATE is nil, appends the heading at end-of-file
+and saves. If NO-CREATE is non-nil and the heading is absent, returns nil.
+Returns a cons cell (buffer . position) pointing at the heading line, or
+nil when NO-CREATE is non-nil and the heading does not exist.
+Does not switch the current buffer."
     (let* ((file (expand-file-name "~/notes/misc.org"))
-           (date-str (format-time-string "<%Y-%m-%d %a>"))
+           (date-str (format-time-string "<%Y-%m-%d %a>" (or time (current-time))))
            (date-re (concat "^\\*+ " (regexp-quote date-str)))
            (buf (find-file-noselect file)))
       (with-current-buffer buf
@@ -1119,12 +1163,13 @@ line. Does not switch the current buffer."
               (progn
                 (org-back-to-heading t)
                 (cons buf (point)))
-            (goto-char (point-max))
-            (unless (bolp) (insert "\n"))
-            (insert "* " date-str "\n")
-            (forward-line -1)
-            (save-buffer)
-            (cons buf (point)))))))
+            (unless no-create
+              (goto-char (point-max))
+              (unless (bolp) (insert "\n"))
+              (insert "* " date-str "\n")
+              (forward-line -1)
+              (save-buffer)
+              (cons buf (point))))))))
 
   (defun org-goto-today ()
     "Jump to today's date heading in ~/notes/misc.org.
