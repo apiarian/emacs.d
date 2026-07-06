@@ -677,10 +677,19 @@ fallback without naming any specific command."
 
   ;; Populated with explicit define-key calls (not inside defvar) so this
   ;; section is idempotent on re-evaluation and updates the live map object.
-  ;; [mouse-1] is intentionally absent: org already follows links with plain
-  ;; click via mouse-1-click-follows-link; intercepting it here would kill
-  ;; active regions and duplicate behavior.
-  (dolist (entry '(([S-mouse-1]     other)
+  ;; [mouse-1]/[drag-mouse-1] are bound (not left to mouse-1-click-follows-link)
+  ;; to stop stray-region creation on a link click. Stock plain-click following
+  ;; runs mouse-drag-region on down-mouse-1, which sets the mark and — if the
+  ;; pointer twitches mid-click — activates a region; the release then follows
+  ;; the link, leaving a region from the link to the followed heading. The twitch
+  ;; also turns the release into a [drag-mouse-1] event, so a plain [mouse-1]
+  ;; binding alone never fires. Fix: ignore [down-mouse-1] on a link (below) so
+  ;; mouse-drag-region never starts, and route both the click and drag release
+  ;; through the opener, which follows the link and deactivate-marks. Trade-off:
+  ;; you cannot start a text selection by dragging out of a link.
+  (dolist (entry '(([mouse-1]       current)
+                   ([drag-mouse-1]  current)
+                   ([S-mouse-1]     other)
                    ([C-mouse-1]     right)
                    ([C-M-mouse-1]   down)
                    ([M-mouse-1]     tab)
@@ -712,6 +721,13 @@ fallback without naming any specific command."
   ;; Shift+click; our opener calls mouse-set-point on the up-event itself.
   (dolist (down '(M-down-mouse-1 S-down-mouse-1 C-M-down-mouse-1 s-down-mouse-1))
     (define-key my-org-link-nav-mode-map (vector down) #'ignore))
+
+  ;; Plain down-mouse-1 must only be consumed on a link (gated by :filter), so
+  ;; ordinary click-to-place-point and drag-select elsewhere are untouched.
+  ;; Ignoring it on a link keeps mouse-drag-region from ever setting the mark.
+  (define-key my-org-link-nav-mode-map [down-mouse-1]
+    `(menu-item "org-link-down-ignore" ignore
+                :filter ,(lambda (c) (when (my-org-link-at-click-p) c))))
 
   (defvar my-org-link-nav-emulation-alist
     (list (cons 'my-org-link-nav-mode my-org-link-nav-mode-map))
