@@ -1088,57 +1088,111 @@ target heading if one does not exist."
                              candidate notes-dir)))))
               :buffer "*helm org headings*"))))
 
+  (defun org-retrofit--heading-link-element-to-id (el)
+    "Convert org link element EL to an id: link, in place.
+Moves point to the link's start first, so on failure point is left at the
+offending link.  Handles [[*Heading]], [[#custom-id]], [[file:path::*Heading]],
+and [[file:path::#custom-id]] links.  Signals `user-error' for non-heading
+links or unresolvable targets.  Returns a cons (ID . HEADING)."
+    (unless (eq (org-element-type el) 'link)
+      (user-error "No link at point"))
+    (let ((type (org-element-property :type el))
+          (path (org-element-property :path el))
+          (search (org-element-property :search-option el))
+          (begin (org-element-property :begin el))
+          target-heading target-id target-buf)
+      (goto-char begin)
+      (cond
+       ;; [[*Heading]]
+       ((and (string= type "fuzzy") (string-prefix-p "*" path))
+        (setq target-buf (current-buffer)
+              search path))
+       ;; [[#custom-id]]
+       ((string= type "custom-id")
+        (setq target-buf (current-buffer)
+              search (concat "#" path)))
+       ;; [[file:path::*Heading]] or [[file:path::#custom-id]]
+       ((and (string= type "file") search
+             (or (string-prefix-p "*" search)
+                 (string-prefix-p "#" search)))
+        (setq target-buf
+              (find-file-noselect
+               (expand-file-name path
+                 (file-name-directory (buffer-file-name))))))
+       (t
+        (user-error "Not a heading or custom-id link")))
+      ;; Creating the target's id can insert a property drawer above the link,
+      ;; shifting BEGIN; a marker tracks the link's real start across that edit.
+      (let ((link-marker (copy-marker begin)))
+        (unwind-protect
+            (progn
+              (with-current-buffer target-buf
+                (save-excursion
+                  (goto-char (point-min))
+                  (if (string-prefix-p "*" search)
+                      (unless (re-search-forward
+                               (format org-complex-heading-regexp-format
+                                       (regexp-quote (substring search 1)))
+                               nil t)
+                        (user-error "Heading '%s' not found" (substring search 1)))
+                    (org-link-search search))
+                  (org-back-to-heading t)
+                  (setq target-heading (org-get-heading t t t t))
+                  (setq target-id (org-id-get-create))))
+              (goto-char link-marker)
+              (if (looking-at org-link-bracket-re)
+                  (replace-match (org-link-make-string
+                                  (concat "id:" target-id) target-heading))
+                (user-error "Could not parse link at point")))
+          (set-marker link-marker nil)))
+      (cons target-id target-heading)))
+
   (defun org-retrofit-heading-link-to-id ()
     "Convert the link at point to use an org-id UUID.
 Handles [[*Heading]], [[#custom-id]], [[file:path::*Heading]],
 and [[file:path::#custom-id]] links."
     (interactive)
-    (let ((el (org-element-context)))
-      (unless (eq (org-element-type el) 'link)
-        (user-error "No link at point"))
-      (let* ((type (org-element-property :type el))
-             (path (org-element-property :path el))
-             (search (org-element-property :search-option el))
-             (begin (org-element-property :begin el))
-             target-heading target-id target-buf)
-        (cond
-         ;; [[*Heading]]
-         ((and (string= type "fuzzy") (string-prefix-p "*" path))
-          (setq target-buf (current-buffer)
-                search path))
-         ;; [[#custom-id]]
-         ((string= type "custom-id")
-          (setq target-buf (current-buffer)
-                search (concat "#" path)))
-         ;; [[file:path::*Heading]] or [[file:path::#custom-id]]
-         ((and (string= type "file") search
-               (or (string-prefix-p "*" search)
-                   (string-prefix-p "#" search)))
-          (setq target-buf
-                (find-file-noselect
-                 (expand-file-name path
-                   (file-name-directory (buffer-file-name))))))
-         (t
-          (user-error "Not a heading or custom-id link")))
-        (with-current-buffer target-buf
-          (save-excursion
-            (goto-char (point-min))
-            (if (string-prefix-p "*" search)
-                (unless (re-search-forward
-                         (format org-complex-heading-regexp-format
-                                 (regexp-quote (substring search 1)))
-                         nil t)
-                  (user-error "Heading '%s' not found" (substring search 1)))
-              (org-link-search search))
-            (org-back-to-heading t)
-            (setq target-heading (org-get-heading t t t t))
-            (setq target-id (org-id-get-create))))
-        (goto-char begin)
-        (if (looking-at org-link-bracket-re)
-            (replace-match (org-link-make-string
-                            (concat "id:" target-id) target-heading))
-          (user-error "Could not parse link at point"))
-        (message "Retrofitted -> [[id:%s][%s]]" target-id target-heading))))
+    (let ((result (org-retrofit--heading-link-element-to-id
+                   (org-element-context))))
+      (message "Retrofitted -> [[id:%s][%s]]" (car result) (cdr result))))
+
+  (defun org-retrofit-heading-links-in-buffer ()
+    "Convert every heading-style link in the current buffer to an id: link.
+Aborts on the first link whose target cannot be resolved, leaving point at
+that link for investigation."
+    (interactive)
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Not in org-mode buffer"))
+    ;; Converting one link can insert id drawers that shift later links, so
+    ;; anchor each candidate with a marker and re-read it fresh at conversion.
+    (let ((markers '())
+          (count 0))
+      (org-element-map (org-element-parse-buffer) 'link
+        (lambda (link)
+          (let ((type (org-element-property :type link))
+                (path (org-element-property :path link))
+                (search (org-element-property :search-option link)))
+            (when (or (and (string= type "fuzzy") (string-prefix-p "*" path))
+                      (string= type "custom-id")
+                      (and (string= type "file") search
+                           (or (string-prefix-p "*" search)
+                               (string-prefix-p "#" search))))
+              (push (copy-marker (org-element-property :begin link)) markers)))))
+      (setq markers (nreverse markers))
+      (unwind-protect
+          (condition-case err
+              (dolist (marker markers)
+                (goto-char marker)
+                (org-retrofit--heading-link-element-to-id (org-element-context))
+                (setq count (1+ count)))
+            ;; On abort point sits on the offending link, which may be folded;
+            ;; reveal it so the surrounding text is visible for investigation.
+            (user-error
+             (org-fold-show-context 'link-search)
+             (signal (car err) (cdr err))))
+        (dolist (marker markers) (set-marker marker nil)))
+      (message "Retrofitted %d heading link%s"
+               count (if (= count 1) "" "s"))))
 
   (defun org-resync-link-description ()
     "Update the description of the id-link at point to match its heading."
