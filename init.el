@@ -509,7 +509,7 @@ With prefix ARG, prompt for a buffer to kill instead."
   (org-auto-align-tags nil)
   (org-tags-column 0)
   (org-agenda-files (list "~/notes/"))
-  (org-refile-targets `((,(directory-files-recursively "~/notes" ".*\\.org$") :maxlevel . 9)))
+  (org-refile-targets '((my-org-refile-files :maxlevel . 9)))
   (org-refile-use-outline-path 'file)
   (org-outline-path-complete-in-steps nil)
   (org-startup-folded 'fold)
@@ -520,10 +520,15 @@ With prefix ARG, prompt for a buffer to kill instead."
          ("C-c L" . org-retrofit-heading-link-to-id)
          ("C-c C-h" . helm-org-agenda-files-headings)
          ("C-c s" . org-search-current-heading)
-         ("C-c B" . my-org-backlinks))
+         ("C-c B" . my-org-backlinks)
+         ("C-c C-S-w" . my-org-refile-to-new-file))
   :config
   (require 'org-mouse)
   (require 'org-id)
+
+  (defun my-org-refile-files ()
+    "Return the list of org files under ~/notes, recomputed on each call."
+    (directory-files-recursively "~/notes" ".*\\.org$"))
 
   ;; RET at the end of a list item calls `org-return', which falls through
   ;; to plain `newline'; with `electric-indent-mode' on (default), that
@@ -816,6 +821,18 @@ fallback without naming any specific command."
     (when (memq arg '(nil 2 3))
       (org-refile-goto-last-stored)))
   (advice-add 'org-refile :after #'my-org-refile-follow)
+
+  (defun my-org-refile-to-new-file (filename)
+    "Refile the current subtree to a new org file under ~/notes.
+Creates FILENAME (adding a .org extension if missing) and refiles
+the subtree at point to its top level."
+    (interactive (list (read-file-name "Refile to new file: " "~/notes/")))
+    (unless (string-suffix-p ".org" filename)
+      (setq filename (concat filename ".org")))
+    (when (file-exists-p filename)
+      (user-error "File already exists: %s" filename))
+    (write-region "" nil filename)
+    (org-refile nil nil (list (file-name-nondirectory filename) filename nil nil)))
 
   (defun org-create-missing-headings ()
     "Find all internal links in current org buffer and create missing headings.
