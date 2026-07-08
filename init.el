@@ -525,6 +525,19 @@ With prefix ARG, prompt for a buffer to kill instead."
   (require 'org-mouse)
   (require 'org-id)
 
+  ;; RET at the end of a list item calls `org-return', which falls through
+  ;; to plain `newline'; with `electric-indent-mode' on (default), that
+  ;; reindents the new blank line to the item's text column instead of
+  ;; leaving it empty. Suppress just that reindent in list context.
+  (defun my-org-no-electric-indent-in-list (char)
+    (when (and (eq char ?\n) (org-in-item-p))
+      'no-indent))
+
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (add-hook 'electric-indent-functions
+                        #'my-org-no-electric-indent-in-list nil t)))
+
   ;;;; Org link multi-destination navigation
   ;;
   ;; Modifier+RET and modifier+click open org links in different destinations:
