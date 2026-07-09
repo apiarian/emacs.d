@@ -1667,3 +1667,14 @@ links.  Recurses to `my-gptel-link-depth' levels."
   (slime-setup '(slime-fancy slime-quicklisp slime-asdf))
   (load "~/quicklisp/clhs-use-local.el" 'noerror))
 
+
+;; --- Descender clipping fix --------------------------------------------
+;; VictorMono Nerd Font's glyphs extend ~1px below the line box Emacs
+;; allocates from the font's metrics. Mid-buffer this overhang is masked by
+;; the line below; on the minibuffer/echo area (the frame's bottom edge) it
+;; gets clipped at the frame content boundary (the descender curls of g j p
+;; q y go missing). WM gaps and `line-spacing' do NOT fix this (verified);
+;; only reserving space below the last line does. A small internal border
+;; gives that space; it's drawn in the frame background by default, so it
+;; stays invisible and adapts to light/dark themes automatically.
+(add-to-list 'default-frame-alist '(internal-border-width . 5))

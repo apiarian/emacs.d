@@ -38,6 +38,12 @@ Called externally by darkman via emacsclient."
     (setenv "PATH" (concat nvm-bin ":" (getenv "PATH")))
     (add-to-list 'exec-path nvm-bin)))
 
+;; ~/.local/bin — user scripts (e.g. fastmail-password used by mbsync)
+(let ((local-bin (expand-file-name "~/.local/bin")))
+  (when (file-directory-p local-bin)
+    (setenv "PATH" (concat local-bin ":" (getenv "PATH")))
+    (add-to-list 'exec-path local-bin)))
+
 ;; When running as a daemon (systemd), import graphical session
 ;; env vars so browse-url/xdg-open can find the display.
 ;; Runs on every new frame since DISPLAY can change between sessions.
