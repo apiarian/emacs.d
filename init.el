@@ -1291,6 +1291,27 @@ Creates the heading if it does not yet exist."
       (org-fold-show-children)
       (recenter 3))))
 
+;;;; org-tidy: hide/shrink property (and other) drawers
+
+(use-package org-tidy
+  :ensure t
+  :hook (org-mode . org-tidy-mode)
+  :bind (:map org-mode-map
+              ("C-c t" . org-tidy-toggle))
+  :custom
+  ;; Per-heading property drawers: replace with a small inline glyph at the
+  ;; end of the heading. Alternatives: 'fringe (bitmap in the fringe) or
+  ;; 'invisible (hide completely, no marker at all).
+  (org-tidy-properties-style 'inline)
+  (org-tidy-properties-inline-symbol "♯")
+  ;; The top-of-file property drawer (#+ block area): 'invisible or 'keep.
+  (org-tidy-top-property-style 'invisible)
+  ;; Disable overlay "protection": its remapped backspace/delete keymap uses
+  ;; rear-advancing overlays whose boundary creeps with point as you edit, so
+  ;; backspace gets hijacked ("Property drawer is protected...") nowhere near
+  ;; an actual drawer. Since drawers are hidden anyway, we don't need it.
+  (org-tidy-protect-overlay nil))
+
 ;;;; Obsidian Import
 
 (use-package obsidian-import
