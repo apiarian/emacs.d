@@ -526,6 +526,14 @@ With prefix ARG, prompt for a buffer to kill instead."
   (require 'org-mouse)
   (require 'org-id)
 
+  ;; The built-in Org 9.7 element cache trips its own consistency checks on
+  ;; large files (spurious "Org parser error ... Resetting" warnings, and
+  ;; hangs / "invalid search bound" during batch edits). Disable it globally.
+  ;; Set after org-element loads so its defcustom can't clobber the value.
+  (with-eval-after-load 'org-element
+    (setq org-element-use-cache nil))
+  (setq org-element-use-cache nil)
+
   (defun my-org-refile-files ()
     "Return the list of org files under ~/notes, recomputed on each call."
     (directory-files-recursively "~/notes" ".*\\.org$"))
@@ -1182,7 +1190,12 @@ that link for investigation."
       (user-error "Not in org-mode buffer"))
     ;; Converting one link can insert id drawers that shift later links, so
     ;; anchor each candidate with a marker and re-read it fresh at conversion.
-    (let ((markers '())
+    ;; The rapid sequence of in-place drawer insertions desyncs the
+    ;; org-element cache, whose consistency checks then run bounded searches
+    ;; that signal "Invalid search bound (wrong side of point)" (or spin in a
+    ;; loop).  Disable the cache for the duration of the pass.
+    (let ((org-element-use-cache nil)
+          (markers '())
           (count 0))
       (org-element-map (org-element-parse-buffer) 'link
         (lambda (link)
