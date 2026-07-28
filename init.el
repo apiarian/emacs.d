@@ -521,6 +521,7 @@ With prefix ARG, prompt for a buffer to kill instead."
          ("C-c C-h" . helm-org-agenda-files-headings)
          ("C-c s" . org-search-current-heading)
          ("C-c B" . my-org-backlinks)
+         ("C-c h" . my-org-region-to-heading-link)
          ("C-c C-S-w" . my-org-refile-to-new-file))
   :config
   (require 'org-mouse)
@@ -1223,6 +1224,43 @@ that link for investigation."
         (dolist (marker markers) (set-marker marker nil)))
       (message "Retrofitted %d heading link%s"
                count (if (= count 1) "" "s"))))
+
+  (defun my-org-region-to-heading-link (beg end)
+    "Turn the region BEG..END into a heading and link to it via an id.
+The region text is normalized (line breaks and repeated whitespace
+collapsed to single spaces, edges trimmed) to form the heading title.
+If a heading with that title already exists in the current buffer, link
+to it instead of creating a new one. In both cases the heading gets an
+org-id and the region is replaced with an [[id:...][title]] link."
+    (interactive "r")
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Not in org-mode buffer"))
+    (let* ((raw (buffer-substring-no-properties beg end))
+           (title (string-trim
+                   (replace-regexp-in-string "[ \t\n\r]+" " " raw))))
+      (when (string-empty-p title)
+        (user-error "Region is empty"))
+      (when (> (length title) 50)
+        (user-error "Selection too long (%d chars); headings are limited to 50"
+                     (length title)))
+      (let (id)
+        (save-excursion
+          (goto-char (point-min))
+          (if (re-search-forward
+               (format "^\\*+[ \t]+%s[ \t]*$" (regexp-quote title)) nil t)
+              ;; Existing heading: reuse (or create) its id.
+              (setq id (org-id-get-create))
+            ;; No such heading: create a new top-level heading at end of file.
+            (goto-char (point-max))
+            (unless (bolp) (insert "\n"))
+            (insert "* " title "\n")
+            (forward-line -1)
+            (setq id (org-id-get-create))))
+        ;; Replace the region with a link to the heading.
+        (delete-region beg end)
+        (goto-char beg)
+        (insert (org-link-make-string (concat "id:" id) title))
+        (message "Linked region to heading %S" title))))
 
   (defun org-resync-link-description ()
     "Update the description of the id-link at point to match its heading."
