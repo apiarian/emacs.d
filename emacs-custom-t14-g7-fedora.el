@@ -1,7 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 ;; Per-host custom-file for t14-g7-fedora (Fedora 44, niri).
 ;; Font family + :height are per-machine: this is a 1920x1200 14" panel
-;; (~162 dpi, niri scale 1). Adjust :height to taste on the real panel.
+;; (~162 dpi, niri fractional scale 1.5). :height 100 (10pt) matches foot's
+;; font size=10; the compositor applies the 1.5x. Adjust :height to taste.
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -25,4 +26,4 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:inherit nil :extend nil :stipple nil :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight regular :height 130 :width normal :foundry "UKWN" :family "VictorMono Nerd Font Mono")))))
+ '(default ((t (:inherit nil :extend nil :stipple nil :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight regular :height 100 :width normal :foundry "UKWN" :family "VictorMono Nerd Font Mono")))))
