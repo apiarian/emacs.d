@@ -507,6 +507,11 @@ With prefix ARG, prompt for a buffer to kill instead."
          (text-mode . turn-on-auto-fill))
   :custom
   (org-auto-align-tags nil)
+  (org-default-notes-file "~/notes/misc.org")
+  (org-capture-templates
+   '(("n" "Note (today's daily)" plain
+      (function my-org-capture-goto-today-body)
+      "%<%H:%M>: %?\n" :empty-lines-before 1)))
   (org-tags-column 0)
   (org-agenda-files (list "~/notes/"))
   (org-refile-targets '((my-org-refile-files :maxlevel . 9)))
@@ -522,7 +527,8 @@ With prefix ARG, prompt for a buffer to kill instead."
          ("C-c s" . org-search-current-heading)
          ("C-c B" . my-org-backlinks)
          ("C-c h" . my-org-region-to-heading-link)
-         ("C-c C-S-w" . my-org-refile-to-new-file))
+         ("C-c C-S-w" . my-org-refile-to-new-file)
+         ("C-c c" . org-capture))
   :config
   (require 'org-mouse)
   (require 'org-id)
@@ -1340,7 +1346,21 @@ Creates the heading if it does not yet exist."
       (goto-char pos)
       (org-fold-show-entry)
       (org-fold-show-children)
-      (recenter 3))))
+      (recenter 3)))
+
+  (defun my-org-capture-goto-today-body ()
+    "Position point at the end of today's date-heading body in misc.org.
+Reuses `my-org-find-or-create-today-heading'."
+    (let* ((result (my-org-find-or-create-today-heading))
+           (buf (car result))
+           (pos (cdr result)))
+      (set-buffer buf)
+      (goto-char pos)
+      (org-end-of-subtree t t)))
+
+  ;; Start capture buffers in insert state so typing works immediately.
+  (when (fboundp 'evil-insert-state)
+    (add-hook 'org-capture-mode-hook #'evil-insert-state)))
 
 ;;;; org-tidy: hide/shrink property (and other) drawers
 
