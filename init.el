@@ -169,8 +169,17 @@ models, or even different backends across machines).  Called inside
 (setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
 (setq delete-old-versions t)
 (setq kept-old-versions 10)
+(setq kept-new-versions 10)
+(setq backup-by-copying t)
 (setq vc-make-backup-files t)
 (setq version-control t)
+
+;; Back up on every save, not just the first save per session.
+;; Emacs only backs up a buffer once per session by default; a long-lived
+;; daemon means backups effectively freeze. Reset the flag before each save.
+(defun my/force-backup-of-buffer ()
+  (setq buffer-backed-up nil))
+(add-hook 'before-save-hook #'my/force-backup-of-buffer)
 
 ;; Keep auto-save files out of project directories
 (make-directory "~/.emacs.d/auto-saves/" t)
