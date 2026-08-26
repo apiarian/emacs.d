@@ -1553,6 +1553,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package markdown-mode :ensure t :defer t)
 ;; requires: npm install -g @mermaid-js/mermaid-cli
 (use-package markdown-mermaid :ensure t :after markdown-mode)
+
+;;;; Index Cards
+(load (expand-file-name "my-index-cards.el" user-emacs-directory) t t)
 (use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
 (use-package adaptive-wrap :ensure t :defer t)
 (use-package web-mode

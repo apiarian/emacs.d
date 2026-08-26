@@ -16,17 +16,12 @@
  '(helm-minibuffer-history-key "M-p")
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages
-   '(adaptive-wrap avy catppuccin-theme dockerfile-mode dumb-jump
-		   evil-collection evil-org evil-surround forge
-		   goto-chg gptel helm-org-ql highlight-thing
-		   inheritenv jinx kanagawa-themes markdown-mermaid
-		   minions monet org-modern org-modern-indent paredit
-		   slime solarized-theme typescript-mode undo-tree
-		   vterm-anti-flicker-filter web-mode yaml-mode))
+ '(package-selected-packages '(inheritenv monet org-modern-indent))
  '(package-vc-selected-packages 'nil)
  '(safe-local-variable-values
-   '((eval progn
+   '((index-card-rows . 15) (index-card-cols . 50) (index-card-rows . 20)
+     (index-card-cols . 60)
+     (eval progn
 	   (dolist
 	       (fn
 		'(magit-insert-tags-header
