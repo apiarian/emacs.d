@@ -547,10 +547,15 @@ With prefix ARG, prompt for a buffer to kill instead."
     "Move to the end of the current Org heading body, before subheadings."
     (interactive)
     (org-back-to-heading t)
-    (forward-line)
-    (if (re-search-forward org-heading-regexp nil t)
-        (goto-char (match-beginning 0))
-      (goto-char (point-max))))
+    (let ((body-start (line-beginning-position 2)))
+      (goto-char body-start)
+      (if (re-search-forward org-heading-regexp nil t)
+          (goto-char (match-beginning 0))
+        (goto-char (point-max)))
+      (skip-chars-backward " \t\n\r" body-start)
+      (when (= (point) body-start)
+        (forward-line -1)
+        (end-of-line))))
 
   (define-key org-mode-map (kbd "C-c e") #'my-org-end-of-heading-body)
 
