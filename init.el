@@ -340,7 +340,8 @@ models, or even different backends across machines).  Called inside
   (require 'evil-org-agenda)
   (evil-org-agenda-set-keys)
   (evil-define-key 'normal org-mode-map
-    (kbd "go") 'org-mark-ring-goto)
+    (kbd "go") 'org-mark-ring-goto
+    (kbd "g e") #'my-org-end-of-heading-body)
   ;; Reclaim C-S-h/j/k/l for windmove (evil-org additional theme steals them)
   (evil-define-key '(normal visual insert) 'evil-org-mode
     (kbd "C-S-h") #'windmove-left
@@ -541,6 +542,17 @@ With prefix ARG, prompt for a buffer to kill instead."
   :config
   (require 'org-mouse)
   (require 'org-id)
+
+  (defun my-org-end-of-heading-body ()
+    "Move to the end of the current Org heading body, before subheadings."
+    (interactive)
+    (org-back-to-heading t)
+    (forward-line)
+    (if (re-search-forward org-heading-regexp nil t)
+        (goto-char (match-beginning 0))
+      (goto-char (point-max))))
+
+  (define-key org-mode-map (kbd "C-c e") #'my-org-end-of-heading-body)
 
   ;; The built-in Org 9.7 element cache trips its own consistency checks on
   ;; large files (spurious "Org parser error ... Resetting" warnings, and
