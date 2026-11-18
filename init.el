@@ -1407,7 +1407,19 @@ Reuses `my-org-find-or-create-today-heading'."
   ;; rear-advancing overlays whose boundary creeps with point as you edit, so
   ;; backspace gets hijacked ("Property drawer is protected...") nowhere near
   ;; an actual drawer. Since drawers are hidden anyway, we don't need it.
-  (org-tidy-protect-overlay nil))
+  (org-tidy-protect-overlay nil)
+
+  ;; Re-applying tidy after a revert: reverting erases and re-inserts
+  ;; buffer text, which deletes the overlays, while org-tidy-mode stays
+  ;; enabled and org-tidy-overlays still references the dead
+  ;; overlays. Covers both manual revert-buffer and auto-revert-mode
+  ;; (e.g. after pi edits the file on disk).
+  (defun ap/org-tidy-after-revert ()
+    (when (and (derived-mode-p 'org-mode) org-tidy-mode)
+      (org-tidy-untidy-buffer)
+      (org-tidy-buffer)))
+  
+  (add-hook 'after-revert-hook #'ap/org-tidy-after-revert))
 
 ;;;; Obsidian Import
 
@@ -1572,7 +1584,18 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
   ;; Start in insert mode for commit messages
   (add-hook 'git-commit-setup-hook #'evil-insert-state)
   (advice-add 'magit-read-string-ns :around #'my-magit-branch-read-with-prefix)
-  (setq magit-status-show-untracked-files 'all))
+  (setq magit-status-show-untracked-files 'all)
+
+  (defun my-magit-visit-files-in-other-window ()
+    "Make RET and S-RET on file and hunk sections visit in another window."
+    (dolist (section-map (list magit-file-section-map magit-hunk-section-map))
+      (define-key section-map (kbd "RET") #'magit-diff-visit-worktree-file-other-window)
+      (define-key section-map (kbd "S-<return>") #'magit-diff-visit-file-other-window)))
+
+  ;; evil-collection rebinds RET in these section maps when it sets up magit.
+  (advice-add 'evil-collection-magit-adjust-section-bindings
+              :after #'my-magit-visit-files-in-other-window)
+  (my-magit-visit-files-in-other-window))
 
 (use-package forge
   :ensure t
@@ -1602,7 +1625,25 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 
 ;;;; Index Cards
 (load (expand-file-name "my-index-cards.el" user-emacs-directory) t t)
-(use-package typescript-mode :ensure t :defer t :if (memq 'typescript my-host-packages))
+
+;; Loaded eagerly: web-ui's .dir-locals.el adds to `eglot-server-programs'
+;; when a file opens, before any mode hook runs.
+(use-package eglot
+  :ensure nil
+  :demand t)
+
+(use-package typescript-ts-mode
+  :if (memq 'typescript my-host-packages)
+  :ensure nil
+  :mode (("\\.ts\\'" . typescript-ts-mode)
+         ("\\.tsx\\'" . tsx-ts-mode))
+  :hook ((typescript-ts-mode tsx-ts-mode) . eglot-ensure)
+  :init
+  (with-eval-after-load 'treesit
+    (add-to-list 'treesit-language-source-alist
+                 '(typescript "https://github.com/tree-sitter/tree-sitter-typescript" "v0.23.2" "typescript/src"))
+    (add-to-list 'treesit-language-source-alist
+                 '(tsx "https://github.com/tree-sitter/tree-sitter-typescript" "v0.23.2" "tsx/src"))))
 (use-package adaptive-wrap :ensure t :defer t)
 (use-package web-mode
   :ensure t

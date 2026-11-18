@@ -16,11 +16,18 @@
  '(helm-minibuffer-history-key "M-p")
  '(inhibit-startup-screen t)
  '(org-hide-emphasis-markers t)
- '(package-selected-packages '(inheritenv monet org-modern-indent))
+ '(package-selected-packages '(inheritenv monet org-modern-indent xterm-color))
  '(package-vc-selected-packages 'nil)
  '(safe-local-variable-values
-   '((index-card-rows . 15) (index-card-cols . 50) (index-card-rows . 20)
-     (index-card-cols . 60)
+   '((eval add-to-list 'eglot-server-programs
+	   '((js-mode js-ts-mode tsx-ts-mode typescript-mode
+		      typescript-ts-mode)
+	     "yarn" "typescript-language-server" "--stdio"
+	     :initializationOptions
+	     (:preferences (:importModuleSpecifier "non-relative")
+			   :maxTsServerMemory 16384)))
+     (index-card-rows . 15) (index-card-cols . 50)
+     (index-card-rows . 20) (index-card-cols . 60)
      (eval progn
 	   (dolist
 	       (fn
