@@ -12,3 +12,4 @@
 /session.*
 /eln-cache/
 /auto-saves/
+*.db
