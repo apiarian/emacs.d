@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t; -*-
 ;; Host-specific configuration for t14-g7-fedora
 ;; Lenovo ThinkPad T14 Gen7, Fedora 44, niri (Wayland).
 ;;

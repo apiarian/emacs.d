@@ -20,7 +20,7 @@
 		   highlight-thing jinx markdown-mermaid minions
 		   org-tidy paredit slime solarized-theme
 		   typescript-mode undo-tree vterm-anti-flicker-filter
-		   web-mode yaml-mode))
+		   web-mode xterm-color yaml-mode))
  '(package-vc-selected-packages 'nil)
  '(tab-bar-mode t)
  '(tool-bar-mode nil))

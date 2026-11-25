@@ -54,7 +54,7 @@ models, or even different backends across machines).  Called inside
 
 ;; New tab default: project root or scratch
 (defun my-new-tab-default ()
-  (if-let ((proj (project-current)))
+  (if-let* ((proj (project-current)))
       (dired (project-root proj))
     (switch-to-buffer (get-buffer-create "*scratch*"))))
 
@@ -420,7 +420,7 @@ With prefix ARG, prompt for a buffer to kill instead."
 (global-set-key [s-mouse-1] (lambda (event)
                                (interactive "e")
                                (mouse-set-point event)
-                               (if-let ((filename (ffap-file-at-point)))
+                               (if-let* ((filename (ffap-file-at-point)))
                                    (find-file-other-window filename)
                                  (message "No file at point"))))
 
@@ -993,12 +993,12 @@ Creates an org-id for the new heading, then inserts an id link at point."
     "Return a list of regex alternatives matching any link to the heading at point.
 Read-only — never creates ids. Caller must already be on a heading."
     (let (alts)
-      (when-let ((id (org-id-get)))
+      (when-let* ((id (org-id-get)))
         (push (concat "id:" (regexp-quote id)) alts))
-      (when-let ((heading (org-get-heading t t t t)))
+      (when-let* ((heading (org-get-heading t t t t)))
         (unless (string-empty-p heading)
           (push (concat "\\*" (regexp-quote heading)) alts)))
-      (when-let ((cid (org-entry-get nil "CUSTOM_ID")))
+      (when-let* ((cid (org-entry-get nil "CUSTOM_ID")))
         (push (concat "#" (regexp-quote cid)) alts))
       alts))
 
@@ -1556,7 +1556,7 @@ Only applies to the *compilation* buffer, not grep or other derivatives."
                (equal (buffer-name buf) "*compilation*"))
       (run-at-time 1 nil
                    (lambda (b)
-                     (when-let ((win (get-buffer-window b)))
+                     (when-let* ((win (get-buffer-window b)))
                        (delete-window win)))
                    buf)))
   (add-hook 'compilation-finish-functions #'my-compilation-auto-close))
@@ -1600,6 +1600,9 @@ Prefix is defined by `my-magit-branch-prefix' in host-specific config."
 (use-package forge
   :ensure t
   :after magit
+  :init
+  ;; evil-collection supplies the forge bindings; avoid the magit-dispatch clash.
+  (setq forge-add-default-bindings nil)
   :demand t)
 
 (use-package dumb-jump
@@ -1692,7 +1695,7 @@ file:path::#custom-id links."
         (search (org-element-property :search-option link)))
     (cond
      ((equal type "id")
-      (when-let ((m (org-id-find path 'marker)))
+      (when-let* ((m (org-id-find path 'marker)))
         (prog1 (and (marker-buffer m)
                     (cons (buffer-file-name (marker-buffer m))
                           (marker-position m)))
@@ -1707,7 +1710,7 @@ file:path::#custom-id links."
                  nil t)
             (cons (buffer-file-name) (match-beginning 0))))))
      ((and (equal type "custom-id") (buffer-file-name))
-      (when-let ((pos (org-find-property "CUSTOM_ID" path)))
+      (when-let* ((pos (org-find-property "CUSTOM_ID" path)))
         (cons (buffer-file-name) pos)))
      ((and (equal type "file") search
            (string-match-p "\\.org\\'" path))
@@ -1725,7 +1728,7 @@ file:path::#custom-id links."
                          nil t)
                     (cons file (match-beginning 0))))
                  ((string-prefix-p "#" search)
-                  (when-let ((pos (org-find-property "CUSTOM_ID"
+                  (when-let* ((pos (org-find-property "CUSTOM_ID"
                                                     (substring search 1))))
                     (cons file pos)))))))))))))
 
@@ -1738,7 +1741,7 @@ file:path::#custom-id links."
                  (save-excursion
                    (save-restriction
                      (widen) (goto-char pos)
-                     (when-let ((id (org-id-get)))
+                     (when-let* ((id (org-id-get)))
                        (cons :id id))))))
           (cons file pos)))))
 
@@ -1797,7 +1800,7 @@ links.  Recurses to `my-gptel-link-depth' levels."
               (setq banner-emitted t))
             (let ((insert-start (point)))
               (dolist (tgt targets)
-                (when-let ((subtree (ignore-errors
+                (when-let* ((subtree (ignore-errors
                                       (my-gptel--extract-subtree tgt))))
                   (insert subtree)
                   (unless (bolp) (insert "\n"))))
@@ -1827,7 +1830,44 @@ links.  Recurses to `my-gptel-link-depth' levels."
   (setq inferior-lisp-program "sbcl")
   :config
   (slime-setup '(slime-fancy slime-quicklisp slime-asdf))
-  (load "~/quicklisp/clhs-use-local.el" 'noerror))
+  (load "~/quicklisp/clhs-use-local.el" 'noerror)
+
+  (defun my-rove-report (label form)
+    "Evaluate FORM (returns generalized boolean) in SLIME; report pass/fail for LABEL.
+The result is shown in the echo area and logged to *Messages*."
+    (slime-eval-async
+        `(swank:interactive-eval ,(format "(if %s :pass :fail)" form) 1 200)
+      (lambda (result)
+        (if (and (stringp result) (string-match-p ":PASS" result))
+            (message "%s %s" (propertize "Rove PASSED:" 'face 'success) label)
+          (message "%s %s" (propertize "Rove FAILED:" 'face 'error) label)))))
+
+  (defun my-rove-run-test-at-point ()
+    "Run the Rove `deftest' surrounding point via SLIME.
+Compile the form first (C-c C-c) so the latest definition is registered."
+    (interactive)
+    (let (name)
+      (save-excursion
+        (end-of-line)
+        (when (re-search-backward "^(deftest[ \t\n]+\\([^ \t\n()]+\\)" nil t)
+          (setq name (match-string-no-properties 1))))
+      (unless name (user-error "No deftest found around point"))
+      (my-rove-report
+       name
+       (format "(rove:run-test (find-symbol (string-upcase \"%s\") (find-package (string-upcase \"%s\"))))"
+               name
+               (string-remove-prefix ":" (slime-current-package))))))
+
+  (defun my-rove-run-system ()
+    "Run all Rove tests in the current buffer's package via SLIME."
+    (interactive)
+    (let ((pkg (string-remove-prefix ":" (slime-current-package))))
+      (my-rove-report
+       pkg
+       (format "(rove:run-suite (find-package (string-upcase \"%s\")))" pkg))))
+
+  (define-key slime-mode-map (kbd "C-c ,") #'my-rove-run-test-at-point)
+  (define-key slime-mode-map (kbd "C-c C-,") #'my-rove-run-system))
 
 
 ;; --- Descender clipping fix --------------------------------------------
